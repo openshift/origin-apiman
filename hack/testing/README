@@ -1,0 +1,33 @@
+Testing
+=======
+
+End-to-end testing
+------------------
+
+The `e2e_deployment.sh` script can be used is several ways, the common case
+being starting the official vagrant image and running:
+
+    hack/testing/e2e_deployment.sh \
+        --bootstrap-os --deploy --build-images --tmp-project
+
+The flags that can be used to change how the tests are executed are:
+
+- `--bootstrap-os`: start an openshift server.  Uses the scripts on origin's
+  `hack` directory.
+- `--deploy`: execute the pre-deployment setup and deployment.  It can be left
+  out to test an already existing deployment.
+- `--build-images`: build the images from the local source instead of using the
+  git repository.
+
+When using the `--deploy` flag, the `--tmp-project` flag can be used to execute
+the deployment on a temporary project named `apiman-e2e-test-XXXX`, where
+`XXXXX` is a randomly generated string.
+
+When using the `--tmp-project` flag, the `--cleanup` flag can be used to remove
+this project at the end of the test.
+
+Instead of using command-line switches, these flags can be set using
+environment variables.  The common could also be executed this way:
+
+    BOOTSTRAP_OS=1 DEPLOY=1 BUILD_IMAGES \
+        hack/testing/e2e_deployment.sh --tmp-project

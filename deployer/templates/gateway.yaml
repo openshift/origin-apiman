@@ -1,0 +1,94 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: apiman-gateway-template-maker
+  annotations:
+    description: "Template to create template for deploying gateway"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: apiman-gateway-template
+    annotations:
+      description: "Template for deploying APIMan gateway connecting to ElasticSearch for storage."
+      tags: "infrastructure"
+    labels:
+      apiman-infra: gateway
+  labels:
+    apiman-infra: gateway
+    provider: openshift
+    component: gateway
+  objects:
+  -
+    apiVersion: "v1"
+    kind: "DeploymentConfig"
+    metadata:
+      name: apiman-gateway
+      labels:
+        provider: openshift
+        component: gateway
+    spec:
+      replicas: 1
+      selector:
+        provider: openshift
+        component: gateway
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - gateway
+          from:
+            kind: ImageStreamTag
+            name: apiman-gateway:latest
+      strategy:
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Rolling
+      template:
+        metadata:
+          name: gateway
+          labels:
+            provider: openshift
+            component: gateway
+        spec:
+          serviceAccountName: apiman-gateway
+          containers:
+            -
+              name: "gateway"
+              image: apiman-gateway
+              imagePullPolicy: IfNotPresent
+              ports:
+                - name: gateway
+                  containerPort: 7777
+              env:
+                - name: "ES_HOST"
+                  value: ${ES_HOST}
+                - name: "ES_PORT"
+                  value: ${ES_PORT}
+              volumeMounts:
+                - name: gateway
+                  mountPath: /secret
+                  readOnly: true
+          volumes:
+            - name: gateway
+              secret:
+                secretName: apiman-gateway
+parameters:
+-
+  description: "Internal URL for the master, for service retrieval"
+  name: MASTER_URL
+  value: "https://kubernetes.default.svc.cluster.local"
+-
+  description: "Hostname/IP for ElasticSearch backend to connect to."
+  name: ES_HOST
+  value: "apiman-storage"
+-
+  description: "Port to connect to for ElasticSearch backend."
+  name: ES_PORT
+  value: "9200"

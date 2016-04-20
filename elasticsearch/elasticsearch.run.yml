@@ -1,0 +1,85 @@
+cluster:
+  name: ${CLUSTER_NAME}
+
+script:
+  disable_dynamic: false
+
+discovery:
+  zen:
+    ping:
+      multicast:
+        enabled: false
+    minimum_master_nodes: ${NODE_QUORUM}
+gateway:
+  recover_after_nodes: ${RECOVER_AFTER_NODES}
+  expected_nodes: ${RECOVER_EXPECTED_NODES}
+  recover_after_time: ${RECOVER_AFTER_TIME}
+
+cloud:
+  k8s:
+    servicedns: ${SERVICE_DNS}
+
+discovery:
+  type: io.fabric8.elasticsearch.discovery.k8s.K8sDiscoveryModule
+
+path:
+  data: /elasticsearch/data/${CLUSTER_NAME}/data  #ES creates ${CLUSTER_NAME} under storage
+  logs: /elasticsearch/${CLUSTER_NAME}/logs
+  work: /elasticsearch/${CLUSTER_NAME}/work
+
+searchguard:
+  config_index_name: ".searchguard"
+  key_path: /elasticsearch/${CLUSTER_NAME}
+  allow_all_from_loopback: false
+  authentication:
+    authentication_backend:
+      impl: com.floragunn.searchguard.authentication.backend.simple.AlwaysSucceedAuthenticationBackend
+    authorizer:
+      impl: com.floragunn.searchguard.authorization.simple.SettingsBasedAuthorizator
+    http_authenticator:
+      impl: io.fabric8.elasticsearch.plugin.HTTPSProxyClientCertAuthenticator
+      # impl: com.floragunn.searchguard.authentication.http.clientcert.HTTPSClientCertAuthenticator
+    authorization:
+      settingsdb:
+        roles:
+          any: ["system.apiman.console", "system.apiman.gateway", "system.apiman.curator", "system.apiman.elasticsearch"]
+  ssl:
+    transport:
+      http:
+        enabled: true
+        keystore_type: JKS
+        keystore_filepath: /etc/elasticsearch/secret/keystore
+        keystore_password: ${KEYSTORE_PASSWORD}
+        enforce_clientauth: true
+        truststore_type: JKS
+        truststore_filepath: /etc/elasticsearch/secret/truststore
+        truststore_password: ${TRUSTSTORE_PASSWORD}
+  actionrequestfilter:
+    names: ["readonly", "access", "curator"]
+    readonly:
+      allowed_actions: ["indices:data/read/*", "*monitor*"]
+      forbidden_actions: ["cluster:*", "indices:admin*", "indices:data/write*"]
+    access:
+      allowed_actions: ["indices:data/*/*", "*monitor*"]
+      forbidden_actions: ["cluster:*", "indices:admin*", "indices:data/write*"]
+    curator:
+      allowed_actions: ["indices:admin/get", "indices:admin/delete"]
+
+openshift:
+  kibana.rewrite.enabled: false
+  acl:
+    dynamic.enabled: false
+    users:
+      names: ["system.apiman.console", "system.apiman.gateway", "system.apiman.curator", "system.apiman.elasticsearch"]
+      system.apiman.console:
+        execute: ["actionrequestfilter.access"]
+        actionrequestfilter.access.comment: "Console can see/edit data"
+      system.apiman.gateway:
+        execute: ["actionrequestfilter.access"]
+        actionrequestfilter.access.comment: "Gateway can see/edit data"
+      system.apiman.curator:
+        execute: ["actionrequestfilter.curator"]
+        actionrequestfilter.curator.comment: "Curator can list all indices and delete them"
+      system.apiman.elasticsearch:
+        bypass: ["*"]
+        "*.comment": "Admin user can do anything"

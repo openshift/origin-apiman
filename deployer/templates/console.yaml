@@ -1,0 +1,117 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: apiman-console-template-maker
+  annotations:
+    description: "Template to create template for deploying console"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: apiman-console-template
+    annotations:
+      description: "Template for deploying APIMan console connecting to ElasticSearch for storage."
+      tags: "infrastructure"
+    labels:
+      apiman-infra: console
+  labels:
+    apiman-infra: console
+    provider: openshift
+    component: console
+  objects:
+  -
+    apiVersion: "v1"
+    kind: "DeploymentConfig"
+    metadata:
+      name: apiman-console
+      labels:
+        provider: openshift
+        component: console
+    spec:
+      replicas: 1
+      selector:
+        provider: openshift
+        component: console
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - console
+          from:
+            kind: ImageStreamTag
+            name: apiman-console:latest
+      strategy:
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Rolling
+      template:
+        metadata:
+          name: console
+          labels:
+            provider: openshift
+            component: console
+        spec:
+          serviceAccountName: apiman-console
+          containers:
+            -
+              name: "console"
+              image: apiman-console
+              imagePullPolicy: IfNotPresent
+              ports:
+              -
+                containerPort: 7777
+                name: "console"
+              env:
+                - name: "APIMAN_SSL"
+                  value: "true"
+                - name: "ES_HOST"
+                  value: ${ES_HOST}
+                - name: "ES_PORT"
+                  value: ${ES_PORT}
+                - name: "PUBLIC_MASTER_URL"
+                  value: ${PUBLIC_MASTER_URL}
+                - name: "GATEWAY_HOST"
+                  value: ${GATEWAY_HOST}
+                - name: "GATEWAY_PORT"
+                  value: ${GATEWAY_PORT}
+                - name: "GATEWAY_PUBLIC_HOSTNAME"
+                  value: ${GATEWAY_PUBLIC_HOSTNAME}
+              volumeMounts:
+                - name: console
+                  mountPath: /secret
+                  readOnly: true
+          volumes:
+            - name: console
+              secret:
+                secretName: apiman-console
+parameters:
+-
+  description: "Public URL for the master, for sending the browser to authenticate"
+  name: PUBLIC_MASTER_URL
+  required: true
+-
+  description: "Hostname/IP for ElasticSearch backend to connect to."
+  name: ES_HOST
+  value: "apiman-storage"
+-
+  description: "Port to connect to for ElasticSearch backend."
+  name: ES_PORT
+  value: "9200"
+-
+  description: "Hostname for API users to reach gateway."
+  name: GATEWAY_PUBLIC_HOSTNAME
+  required: true
+-
+  description: "Hostname/IP for gateway backend to connect to."
+  name: GATEWAY_HOST
+  value: "apiman-gateway"
+-
+  description: "Port to connect to for gateway backend."
+  name: GATEWAY_PORT
+  value: "7070"

@@ -35,6 +35,11 @@ items:
     apiVersion: v1
     kind: ServiceAccount
     metadata:
+      name: apiman-curator
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
       name: apiman-gateway
 -
   apiVersion: "v1"
@@ -73,6 +78,8 @@ items:
             value: ${IMAGE_PREFIX}
           - name: IMAGE_VERSION
             value: ${IMAGE_VERSION}
+          - name: INSECURE_REPOS
+            value: ${INSECURE_REPOS}
           - name: CONSOLE_HOSTNAME
             value: ${CONSOLE_HOSTNAME}
           - name: GATEWAY_HOSTNAME
@@ -103,6 +110,8 @@ items:
             value: ${CONSOLE_NODESELECTOR}
           - name: MODE
             value: ${MODE}
+          - name: IGNORE_PREFLIGHT
+            value: ${IGNORE_PREFLIGHT}
       dnsPolicy: ClusterFirst
       restartPolicy: Never
       serviceAccount: apiman-deployer
@@ -121,6 +130,10 @@ items:
     description: 'Specify version for apiman components; e.g. for "openshift/origin-apiman-deployer:v1.1", set version "v1.1"'
     name: IMAGE_VERSION
     value: "latest"
+  -
+    description: 'Specify whether the repositories for apiman components are insecure'
+    name: INSECURE_REPOS
+    value: "false"
   -
     description: "External hostname where users will reach the APIMan management UI"
     name: CONSOLE_HOSTNAME
@@ -181,3 +194,7 @@ items:
     description: "The mode that the deployer runs in: one of install|reinstall|uninstall."
     name: MODE
     value: "install"
+  -
+    description: "Continue deploying even if the preflight validation fails."
+    name: IGNORE_PREFLIGHT
+    value: "false"

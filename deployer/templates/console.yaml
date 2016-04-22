@@ -42,7 +42,7 @@ objects:
           - console
           from:
             kind: ImageStreamTag
-            name: apiman-console:latest
+            name: apiman-console:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -90,7 +90,16 @@ objects:
             - name: console
               secret:
                 secretName: apiman-console
+  parameters:
+  -
+    description: "The version tag of the image to use."
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
 parameters:
+-
+  description: "The version tag of the image to use."
+  name: IMAGE_VERSION_DEFAULT
+  required: true
 -
   description: "Public URL for the master, for sending the browser to authenticate"
   name: PUBLIC_MASTER_URL

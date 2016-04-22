@@ -8,6 +8,9 @@ function delete_installation() {
   oc delete all,templates,secrets --selector $label
 }
 
+readonly label=apiman-infra  # "constant" label name applied to all our objects
+readonly support_label="apiman-infra=support" 
+
 function run_installation() {
   set -x
   initialize_vars
@@ -24,6 +27,7 @@ function run_installation() {
 function initialize_vars() {
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
+  insecure_repos=${INSECURE_REPOS:-false}
   console_hostname=${CONSOLE_HOSTNAME:-apiman.example.com}
   gateway_hostname=${GATEWAY_HOSTNAME:-api-gateway.example.com}
   public_master_url=${PUBLIC_MASTER_URL:-https://localhost:443}
@@ -43,11 +47,6 @@ function initialize_vars() {
   # other env vars used (expect base64 encoding):
   # KIBANA_KEY, KIBANA_CERT, SERVER_TLS_JSON
 
-  label=apiman-infra  # "constant" label name applied to all our objects
-  console_label="apiman-infra=console" 
-  gateway_label="apiman-infra=gateway" 
-  storage_label="apiman-infra=storage" 
-  support_label="apiman-infra=support" 
 }
 
 ######################################
@@ -63,7 +62,7 @@ function create_secrets() {
 
   # use or generate server certs
   local file component hostnames secret
-  for component in console gateway elasticsearch; do
+  for component in console gateway elasticsearch curator; do
     if [ -s $secret_dir/apiman-${component}.keystore.jks ]; then
       # use files from secret when present
       for file in apiman-${component}.{key,trust}store.jks{,.password}; do
@@ -73,7 +72,7 @@ function create_secrets() {
       hostnames=apiman-${component}
       [ "$component" = console ] && hostnames=$hostnames,${console_hostname}
       [ "$component" = gateway ] && hostnames=$hostnames,${gateway_hostname}
-      generate_JKS_chain apiman-${component} $hostnames
+      [ "$component" = curator ] || generate_JKS_chain apiman-${component} $hostnames
     fi
     local user="system.apiman.$component"
     # use or generate client certs for accessing ES
@@ -94,10 +93,18 @@ function create_secrets() {
           client.crt=$scratch_dir/${user}.crt
           client.keystore=$scratch_dir/${user}.keystore.jks
           client.keystore.password=$scratch_dir/${user}.keystore.jks.password
+          ca.crt=$scratch_dir/ca.crt
           )
     case "$component" in
-      console|gateway) secret+=( auth-user=$scratch_dir/gateway.access.user auth-password=$scratch_dir/gateway.access.password ) ;;
+      #console|gateway) secret+=( auth-user=$scratch_dir/gateway.access.user auth-password=$scratch_dir/gateway.access.password ) ;;
       elasticsearch)   secret+=( searchguard-node-key=$scratch_dir/searchguard-node-key.key ) ;;
+      curator)         secret=(
+                          client.key=$scratch_dir/${user}.key
+                          client.crt=$scratch_dir/${user}.crt
+                          client.keystore=$scratch_dir/${user}.keystore.jks
+                          client.keystore.password=$scratch_dir/${user}.keystore.jks.password
+                          ca.crt=$scratch_dir/ca.crt
+                       ) ;;
     esac
     oc secrets new apiman-$component ${secret[@]}
     oc label secret/apiman-$component $support_label # make them easier to delete later
@@ -119,6 +126,15 @@ function create_templates() {
            --value "ES_RECOVER_AFTER_NODES=${es_recover_after_nodes}" \
            --value "ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes}" \
            --value "ES_RECOVER_AFTER_TIME=${es_recover_after_time}" \
+           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
+           | oc create -f -
+
+  sed "/serviceAccountName/ i\
+\          $(os::int::deploy::extract_nodeselector ${CURATOR_NODESELECTOR:-})" \
+           templates/curator.yaml | oc process -f - \
+           --value "ES_HOST=apiman-storage" \
+           --value "MASTER_URL=${master_url}" \
+           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
            | oc create -f -
 
   sed "/serviceAccountName/ i\
@@ -126,18 +142,19 @@ function create_templates() {
            templates/console.yaml | oc process -f - \
            --value "PUBLIC_MASTER_URL=${public_master_url}" \
            --value "GATEWAY_PUBLIC_HOSTNAME=${gateway_hostname}" \
+           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
            | oc create -f -
 
   sed "/serviceAccountName/ i\
 \          $(os::int::deploy::extract_nodeselector ${GATEWAY_NODESELECTOR:-})" \
            templates/gateway.yaml | oc process -f - \
-           --value ES_HOST=apiman-storage \
+           --value "ES_HOST=apiman-storage" \
+           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
            | oc create -f -
 
   oc new-app -f templates/support.yaml \
            --param "CONSOLE_HOSTNAME=${console_hostname}" \
-           --param "IMAGE_PREFIX=${image_prefix}" \
-           --param "IMAGE_VERSION=${image_version}"
+           --param "IMAGE_PREFIX=${image_prefix}"
 }
 
 ######################################
@@ -146,7 +163,9 @@ function create_templates() {
 #
 function create_deployment() {
   echo "Creating deployed objects"
-  oc process apiman-imagestream-template | oc create -f - || : # these may fail if already created; that's ok
+  oc new-app apiman-imagestream-template --param "INSECURE_REPOS=${insecure_repos}" || :
+  # these may fail if already created; that's ok
+           
   oc process apiman-support-template | oc create -f -
 
   # routes
@@ -189,6 +208,7 @@ function create_deployment() {
   done
   oc process apiman-console-template | oc create -f -
   oc process apiman-gateway-template | oc create -f -
+  oc process apiman-curator-template | oc create -f -
 }
 
 ######################################

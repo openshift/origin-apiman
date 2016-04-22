@@ -42,7 +42,7 @@ function check_service_accounts() {
     echo '  $ oc policy add-role-to-user edit -z apiman-deployer'
     return 1
   fi
-  for sa in apiman-{gateway,console,elasticsearch}; do
+  for sa in apiman-{gateway,console,elasticsearch,curator}; do
     os::int::pre::check_service_account $project $sa || return 1
   done
   # likewise, just reading nodes isn't enough, but lack of access is a good indicator.

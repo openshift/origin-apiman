@@ -42,7 +42,7 @@ objects:
           - gateway
           from:
             kind: ImageStreamTag
-            name: apiman-gateway:latest
+            name: apiman-gateway:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -79,6 +79,11 @@ objects:
             - name: gateway
               secret:
                 secretName: apiman-gateway
+  parameters:
+  -
+    description: "The version tag of the image to use."
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
 parameters:
 -
   description: "Internal URL for the master, for service retrieval"
@@ -92,3 +97,8 @@ parameters:
   description: "Port to connect to for ElasticSearch backend."
   name: ES_PORT
   value: "9200"
+-
+  description: "The version tag of the image to use."
+  name: IMAGE_VERSION_DEFAULT
+  required: true
+

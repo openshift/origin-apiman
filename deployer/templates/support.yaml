@@ -13,11 +13,7 @@ parameters:
 -
   description: 'Specify prefix for apiman component images; e.g. for "openshift/origin-apiman-deployer:v1.1", set prefix "openshift/origin-"'
   name: IMAGE_PREFIX
-  value: "docker.io/sosiouxme/"
--
-  description: 'Specify version for apiman component images; e.g. for "openshift/origin-apiman-deployer:v1.1", set version "v1.1"'
-  name: IMAGE_VERSION
-  value: "latest"
+  value: "docker.io/openshift/origin-"
 objects:
 - apiVersion: "v1"
   kind: "Template"
@@ -98,34 +94,48 @@ objects:
     apiman-infra: support
     provider: openshift
     component: support
+  parameters:
+  -
+    description: "The name for the PVC"
+    name: INSECURE_REPOS
+    value: "false"
   objects:
   -
     apiVersion: v1
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
       name: apiman-elasticsearch
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}apiman-elasticsearch:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}apiman-elasticsearch
   -
     apiVersion: v1
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
+      name: apiman-curator
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}apiman-elasticsearch
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
       name: apiman-console
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}apiman-console:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}apiman-console
   -
     apiVersion: v1
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
       name: apiman-gateway
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}apiman-gateway:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}apiman-gateway
 - apiVersion: "v1"
   kind: "Template"
   parameters:

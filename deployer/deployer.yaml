@@ -103,6 +103,8 @@ items:
             value: ${CONSOLE_NODESELECTOR}
           - name: MODE
             value: ${MODE}
+          - name: IGNORE_PREFLIGHT
+            value: ${IGNORE_PREFLIGHT}
       dnsPolicy: ClusterFirst
       restartPolicy: Never
       serviceAccount: apiman-deployer
@@ -181,3 +183,7 @@ items:
     description: "The mode that the deployer runs in: one of install|reinstall|uninstall."
     name: MODE
     value: "install"
+  -
+    description: "Continue deploying even if the preflight validation fails."
+    name: IGNORE_PREFLIGHT
+    value: "false"

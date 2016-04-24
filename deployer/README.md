@@ -135,11 +135,11 @@ are available:
 
 You run the deployer by instantiating a template. Here is an example with some parameters:
 
-    $ oc new-app openshift apiman-deployer-template \
-               -p GATEWAY_HOSTNAME=gateway.example.com \
-               -p CONSOLE_HOSTNAME=console.example.com \
-               -p PUBLIC_MASTER_URL=https://localhost:8443 \
-               -p ES_CLUSTER_SIZE=1
+    $ oc new-app apiman-deployer-template \
+                 -p GATEWAY_HOSTNAME=gateway.example.com \
+                 -p CONSOLE_HOSTNAME=console.example.com \
+                 -p PUBLIC_MASTER_URL=https://localhost:8443 \
+                 -p ES_CLUSTER_SIZE=1
 
 This creates a deployer pod and prints its name. Wait until the pod
 is running; this can take up to a few minutes to retrieve the deployer

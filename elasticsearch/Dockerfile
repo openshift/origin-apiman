@@ -31,7 +31,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
     yum clean all
 ADD logging.yml /usr/share/elasticsearch/config/
 # initial elasticsearch.yml is just to enable plugin installation
-ADD elasticsearch.install.yml logging.yml /usr/share/elasticsearch/config/elasticsearch.yml
+ADD elasticsearch.install.yml /usr/share/elasticsearch/config/elasticsearch.yml
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 # now put the real config in place

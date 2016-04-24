@@ -1,7 +1,7 @@
 #!/bin/bash
 set -exuo pipefail
 
-for script in scripts/*.sh ../common/bash/validation/*.sh ../common/bash/deploy/*.sh; do
+for script in scripts/*.sh common/bash/validation/*.sh common/bash/deploy/*.sh; do
   source $script
 done
 

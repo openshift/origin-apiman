@@ -61,7 +61,7 @@ function create_secrets() {
   mktemp -u XXXXXXXXXXXXXX > $scratch_dir/gateway.access.password
 
   # use or generate server certs
-  local file component hostnames secret
+  local file component hostnames secret domain=${project}.svc.cluster.local
   for component in console gateway elasticsearch curator; do
     if [ -s $secret_dir/apiman-${component}.keystore.jks ]; then
       # use files from secret when present
@@ -69,10 +69,13 @@ function create_secrets() {
         cp {$secret_dir,$scratch_dir}/$file
       done
     else #fallback to creating one
-      hostnames=apiman-${component}
-      [ "$component" = console ] && hostnames=$hostnames,${console_hostname}
-      [ "$component" = gateway ] && hostnames=$hostnames,${gateway_hostname}
-      [ "$component" = curator ] || generate_JKS_chain apiman-${component} $hostnames
+      hostnames=apiman-${component},apiman-${component}.${domain},localhost
+      case "$component" in
+        console) hostnames=$hostnames,${console_hostname} ;;
+        gateway) hostnames=$hostnames,${gateway_hostname} ;;
+        elasticsearch) hostnames=$hostnames,apiman-storage,apiman-storage.${domain} ;;
+      esac
+      [ "$component" != curator ] && generate_JKS_chain apiman-${component} $hostnames
     fi
     local user="system.apiman.$component"
     # use or generate client certs for accessing ES

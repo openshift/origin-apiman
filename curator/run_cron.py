@@ -94,15 +94,15 @@ for operation in curator_settings:
             job.every().day()
 
 def run_all_jobs(joblist):
-    logger.info("logging-curator running [%d] jobs" % len(joblist))
+    logger.info("curator running [%d] jobs" % len(joblist))
     for job in joblist:
-        logger.debug("logging-curator running job [%s]" % job)
+        logger.debug("curator running job [%s]" % job)
         output = job.run()
         if output:
             logger.info(output)
         else:
-            logger.debug("logging-curator job [%s] was successful" % job)
-    logger.info("logging-curator run finish")
+            logger.debug("curator job [%s] was successful" % job)
+    logger.info("curator run finish")
 
 # run jobs now
 run_all_jobs(my_cron)
@@ -130,7 +130,7 @@ while True:
         # the next runtime is less than now, so run a day from now
         nextruntime = nextruntime + 86400
         # else run later today
-    logger.debug("logging-curator hour [%d] minute [%d] nextruntime [%d] now [%d]" % (thehour, theminute, nextruntime, time.time()))
+    logger.debug("curator hour [%d] minute [%d] nextruntime [%d] now [%d]" % (thehour, theminute, nextruntime, time.time()))
     # sleep until then
     time.sleep(nextruntime - time.time())
     run_all_jobs(my_cron)

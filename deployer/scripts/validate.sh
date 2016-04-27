@@ -48,10 +48,6 @@ function check_service_accounts() {
   return 0
 }
 
-function validate_deployment() {
-  return 0
-}
-
 function check_routes() {
   local route failure=false
   for route in apiman-{console,gateway}; do
@@ -60,3 +56,100 @@ function check_routes() {
   [ "$failure" = false ] || return 1
 }
 
+function validate_deployment() {
+  printf '\n%s\n' 'DEPLOYMENT VALIDATION'
+  os::int::util::validate check_secrets check_deployer
+  wait_for_elasticsearch
+  os::int::util::validate check_elasticsearch
+}
+
+function check_secrets() {
+  local tmpl secret keys out
+  tmpl='{{range $k, $_ := .data}}{{$k}}{{"\n"}}{{end}}'
+  while read secret keys; do
+    out=$(oc get "secret/$secret" --template "$tmpl" | xargs echo)
+    [ "$out" == "$keys" ] && continue
+    validation_failure \
+      "Wrong data on deployer-generated secret $secret" \
+      "$(printf 'Expected:\n%s\nGot:\n%s\n' "$keys" "$out")"
+    return 1
+  done <<-'EOF'
+		apiman-elasticsearch \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			keystore keystore.password searchguard-node-key truststore \
+			truststore.password
+		apiman-console \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			keystore keystore.password truststore truststore.password
+		apiman-gateway \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			keystore keystore.password truststore truststore.password
+		EOF
+}
+
+function check_deployer() {
+  local line out
+  while read line; do
+    out=$(os::int::util::check_exists $line 2>&1) && continue
+    printf >&2 '%s' "$out"
+    return 1
+  done <<-'EOF'
+		imagestreams apiman-console apiman-elasticsearch apiman-gateway
+		serviceaccounts \
+			apiman-console apiman-deployer apiman-elasticsearch apiman-gateway
+		deploymentconfigs apiman-console apiman-gateway
+		deploymentconfigs --selector component=elasticsearch
+		services apiman-console apiman-es-cluster apiman-gateway apiman-storage
+		routes apiman-console apiman-gateway
+		EOF
+}
+
+wait_for_elasticsearch() {
+  # curl(1):
+  # 28: Operation timeout.
+  # 52: The server didn't reply anything.
+  local deadline ret
+  deadline=$(($(date +%s) + 3 * 60))
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    curl --silent --show-error --max-time 18 apiman-storage:9200 \
+      && ret=$? || ret=$?
+    case "$ret" in
+      52) return 0;;
+      28) ;;
+      **) sleep 18;;
+    esac
+  done
+  printf >&2 '%s\n' 'Timeout waiting for elasticsearch to be up.'
+  return 1
+}
+
+check_elasticsearch() {
+  # curl(1):
+  # 52: The server didn't reply anything.
+  # 58: Problem with the local certificate.
+  # 60: Peer certificate cannot be authenticated with known CA certificates.
+  local curl_cmd es_url
+  curl_cmd='curl --silent --show-error'
+  es_url=apiman-storage:9200
+  if out=$($curl_cmd "$es_url" 2>&1) || [ $? != 52 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should have received an empty response when accessing using http'
+  fi
+  es_url=https://$es_url
+  if out=$($curl_cmd "$es_url" 2>&1) || [ $? != 60 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should get an error connecting without a CA to verify the server'
+  fi
+  if out=$($curl_cmd --insecure "$es_url" 2>&1) || [ $? != 58 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should get an error without configuring a client certificate'
+  fi
+}
+
+validation_failure() {
+  printf >&2 '%s.\n\n%s' "$@"
+  return 1
+}

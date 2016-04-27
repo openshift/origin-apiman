@@ -96,15 +96,21 @@ objects:
                 name: RECOVER_AFTER_TIME
                 value: ${RECOVER_AFTER_TIME}
               volumeMounts:
-                - name: elasticsearch
+                - name: elasticsearch-secret
                   mountPath: /etc/elasticsearch/secret
+                  readOnly: true
+                - name: elasticsearch-config
+                  mountPath: /usr/share/elasticsearch/config
                   readOnly: true
                 - name: elasticsearch-storage
                   mountPath: /elasticsearch/data
           volumes:
-            - name: elasticsearch
+            - name: elasticsearch-secret
               secret:
                 secretName: apiman-elasticsearch
+            - name: elasticsearch-config
+              configMap:
+                name: apiman-elasticsearch
             - name: elasticsearch-storage
               emptyDir: {}
   parameters:

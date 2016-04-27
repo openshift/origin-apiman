@@ -2,10 +2,8 @@
 
 function delete_installation() {
   initialize_vars
-  echo "Attempting to delete supporting objects (may fail)"
-  # delete oauthclient created in template; we can't search for it by label. the rest is incidental.
-  oc process apiman-support-template | oc delete -f - || :
-  oc delete all,templates,secrets --selector $label
+  echo "Deleting supporting objects"
+  oc delete all,templates,secrets,configmaps --selector $label
 }
 
 readonly label=apiman-infra  # "constant" label name applied to all our objects
@@ -14,7 +12,7 @@ readonly support_label="apiman-infra=support"
 function run_installation() {
   set -x
   initialize_vars
-  create_secrets
+  create_config
   create_templates
   create_deployment
   report_success
@@ -51,9 +49,15 @@ function initialize_vars() {
 
 ######################################
 #
-# generate secret contents and secrets
+# generate contents and API objects for secrets and configmap
 #
-function create_secrets() {
+function create_config() {
+  # generate elasticsearch configmap
+  oc create configmap apiman-elasticsearch \
+    --from-file=common/elasticsearch/logging.yml \
+    --from-file=conf/elasticsearch.yml
+  oc label configmap/apiman-elasticsearch $support_label # make easier to delete later
+
   # generate common node key for the SearchGuard plugin
   openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $scratch_dir/searchguard-node-key.key -pass pass:pass
   # generate credentials for u/p access to the gateway from the console

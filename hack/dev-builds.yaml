@@ -83,7 +83,7 @@ objects:
         name: apiman-elasticsearch:latest
     resources: {}
     source:
-      contextDir: elasticsearch
+      contextDir: deployer/common/elasticsearch
       git:
         uri: ${APIMAN_FORK_URL}
         ref: ${APIMAN_FORK_BRANCH}
@@ -110,7 +110,7 @@ objects:
         name: apiman-curator:latest
     resources: {}
     source:
-      contextDir: curator
+      contextDir: deployer/common/curator
       git:
         uri: ${APIMAN_FORK_URL}
         ref: ${APIMAN_FORK_BRANCH}

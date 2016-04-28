@@ -25,7 +25,7 @@ function run_installation() {
 function initialize_vars() {
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
-  insecure_repos=${INSECURE_REPOS:-false}
+  insecure_registry=${INSECURE_REGISTRY:-false}
   console_hostname=${CONSOLE_HOSTNAME:-apiman.example.com}
   gateway_hostname=${GATEWAY_HOSTNAME:-api-gateway.example.com}
   public_master_url=${PUBLIC_MASTER_URL:-https://localhost:443}
@@ -103,7 +103,7 @@ function create_config() {
           ca.crt=$scratch_dir/ca.crt
           )
     case "$component" in
-      #console|gateway) secret+=( auth-user=$scratch_dir/gateway.access.user auth-password=$scratch_dir/gateway.access.password ) ;;
+      console|gateway) secret+=( gateway.username=$scratch_dir/gateway.access.user gateway.password=$scratch_dir/gateway.access.password ) ;;
       elasticsearch)   secret+=( searchguard-node-key=$scratch_dir/searchguard-node-key.key ) ;;
       curator)         secret=(
                           client.key=$scratch_dir/${user}.key
@@ -170,7 +170,7 @@ function create_templates() {
 #
 function create_deployment() {
   echo "Creating deployed objects"
-  oc new-app apiman-imagestream-template --param "INSECURE_REPOS=${insecure_repos}" || :
+  oc new-app apiman-imagestream-template --param "INSECURE_REGISTRY=${insecure_registry}" || :
   # these may fail if already created; that's ok
            
   oc process apiman-support-template | oc create -f -

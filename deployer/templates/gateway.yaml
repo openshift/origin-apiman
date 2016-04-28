@@ -67,13 +67,11 @@ objects:
                 - name: gateway
                   containerPort: 7777
               env:
-                - name: "ES_HOST"
-                  value: ${ES_HOST}
-                - name: "ES_PORT"
-                  value: ${ES_PORT}
+                - name: "APIMAN_ELASTICSEARCH_URL"
+                  value: https://${ES_HOST}:${ES_PORT}
               volumeMounts:
                 - name: gateway
-                  mountPath: /secret
+                  mountPath: /secret/apiman-gateway
                   readOnly: true
           volumes:
             - name: gateway

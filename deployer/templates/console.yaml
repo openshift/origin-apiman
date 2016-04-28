@@ -65,15 +65,13 @@ objects:
               imagePullPolicy: IfNotPresent
               ports:
               -
-                containerPort: 7777
+                containerPort: 7070
                 name: "console"
               env:
                 - name: "APIMAN_SSL"
                   value: "true"
-                - name: "ES_HOST"
-                  value: ${ES_HOST}
-                - name: "ES_PORT"
-                  value: ${ES_PORT}
+                - name: "APIMAN_ELASTICSEARCH_URL"
+                  value: https://${ES_HOST}:${ES_PORT}
                 - name: "PUBLIC_MASTER_URL"
                   value: ${PUBLIC_MASTER_URL}
                 - name: "GATEWAY_HOST"
@@ -84,7 +82,7 @@ objects:
                   value: ${GATEWAY_PUBLIC_HOSTNAME}
               volumeMounts:
                 - name: console
-                  mountPath: /secret
+                  mountPath: /secret/apiman
                   readOnly: true
           volumes:
             - name: console

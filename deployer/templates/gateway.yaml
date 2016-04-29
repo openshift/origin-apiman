@@ -61,7 +61,7 @@ objects:
           containers:
             -
               name: "gateway"
-              image: apiman-gateway
+              image: ${IMAGE_PREFIX}apiman-gateway:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
               ports:
                 - name: gateway
@@ -82,6 +82,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
 parameters:
 -
   description: "Internal URL for the master, for service retrieval"
@@ -98,5 +101,8 @@ parameters:
 -
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
+  required: true
+-
+  name: IMAGE_PREFIX_DEFAULT
   required: true
 

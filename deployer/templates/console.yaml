@@ -61,7 +61,7 @@ objects:
           containers:
             -
               name: "console"
-              image: apiman-console
+              image: ${IMAGE_PREFIX}apiman-console:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
               ports:
               -
@@ -93,10 +93,16 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
 parameters:
 -
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
+  required: true
+-
+  name: IMAGE_PREFIX_DEFAULT
   required: true
 -
   description: "Public URL for the master, for sending the browser to authenticate"

@@ -78,6 +78,8 @@ items:
             value: ${IMAGE_PREFIX}
           - name: IMAGE_VERSION
             value: ${IMAGE_VERSION}
+          - name: IMAGE_PULL_SECRET
+            value: ${IMAGE_PULL_SECRET}
           - name: INSECURE_REGISTRY
             value: ${INSECURE_REGISTRY}
           - name: CONSOLE_HOSTNAME
@@ -130,6 +132,9 @@ items:
     description: 'Specify version for apiman components; e.g. for "openshift/origin-apiman-deployer:v1.1", set version "v1.1"'
     name: IMAGE_VERSION
     value: "latest"
+  -
+    description: 'Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.'
+    name: IMAGE_PULL_SECRET
   -
     description: '"true" allows the registry for component images to be insecure'
     name: INSECURE_REGISTRY

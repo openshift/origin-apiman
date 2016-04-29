@@ -24,6 +24,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
   objects:
   -
     apiVersion: v1
@@ -65,7 +68,7 @@ objects:
           serviceAccountName: apiman-curator
           containers:
           - name: curator
-            image: apiman-curator
+            image: ${IMAGE_PREFIX}apiman-curator:${IMAGE_VERSION}
             imagePullPolicy: IfNotPresent
             resources:
               limits:
@@ -144,3 +147,5 @@ parameters:
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
   value: "latest"
+-
+  name: IMAGE_PREFIX_DEFAULT

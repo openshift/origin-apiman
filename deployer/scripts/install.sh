@@ -61,8 +61,8 @@ function create_config() {
   # generate common node key for the SearchGuard plugin
   openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $scratch_dir/searchguard-node-key.key -pass pass:pass
   # generate credentials for u/p access to the gateway from the console
-  echo "console_user" > $scratch_dir/gateway.access.user
-  mktemp -u XXXXXXXXXXXXXX > $scratch_dir/gateway.access.password
+  echo -n "console_user," > $scratch_dir/gateway.user
+  mktemp -u XXXXXXXXXXXXXX >> $scratch_dir/gateway.user
 
   # use or generate server certs
   local file component hostnames secret domain=${project}.svc.cluster.local
@@ -103,7 +103,7 @@ function create_config() {
           ca.crt=$scratch_dir/ca.crt
           )
     case "$component" in
-      console|gateway) secret+=( gateway.username=$scratch_dir/gateway.access.user gateway.password=$scratch_dir/gateway.access.password ) ;;
+      console|gateway) secret+=( gateway.user=$scratch_dir/gateway.user ) ;;
       elasticsearch)   secret+=( searchguard-node-key=$scratch_dir/searchguard-node-key.key ) ;;
       curator)         secret=(
                           client.key=$scratch_dir/${user}.key
@@ -117,7 +117,7 @@ function create_config() {
     oc label secret/apiman-$component $support_label # make them easier to delete later
     oc secrets add serviceaccount/apiman-$component secrets/apiman-$component --for=mount
   done
-  if [ -n "$IMAGE_PULL_SECRET" ]; then
+  if [ -n "${IMAGE_PULL_SECRET:-}" ]; then
     for account in apiman-{console,gateway,elasticsearch,curator}; do
       oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET" 
     done

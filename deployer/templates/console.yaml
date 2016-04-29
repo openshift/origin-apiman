@@ -72,14 +72,12 @@ objects:
                   value: "true"
                 - name: "APIMAN_ELASTICSEARCH_URL"
                   value: https://${ES_HOST}:${ES_PORT}
+                - name: "APIMAN_GATEWAY_URL"
+                  value: https://${GATEWAY_HOST}:${GATEWAY_PORT}
+                - name: "APIMAN_GATEWAY_PUBLIC_HOSTNAME"
+                  value: ${GATEWAY_PUBLIC_HOSTNAME}
                 - name: "PUBLIC_MASTER_URL"
                   value: ${PUBLIC_MASTER_URL}
-                - name: "GATEWAY_HOST"
-                  value: ${GATEWAY_HOST}
-                - name: "GATEWAY_PORT"
-                  value: ${GATEWAY_PORT}
-                - name: "GATEWAY_PUBLIC_HOSTNAME"
-                  value: ${GATEWAY_PUBLIC_HOSTNAME}
               volumeMounts:
                 - name: console
                   mountPath: /secret/apiman
@@ -127,4 +125,4 @@ parameters:
 -
   description: "Port to connect to for gateway backend."
   name: GATEWAY_PORT
-  value: "7070"
+  value: "7777"

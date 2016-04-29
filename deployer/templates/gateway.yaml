@@ -67,7 +67,9 @@ objects:
                 - name: gateway
                   containerPort: 7777
               env:
-                - name: "APIMAN_ELASTICSEARCH_URL"
+                - name: "APIMAN_GATEWAY_SSL"
+                  value: "true"
+                - name: "APIMAN_GATEWAY_ELASTICSEARCH_URL"
                   value: https://${ES_HOST}:${ES_PORT}
               volumeMounts:
                 - name: gateway

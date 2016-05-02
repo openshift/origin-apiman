@@ -8,6 +8,7 @@ readonly ORIGIN_APIMAN_ROOT OS_ROOT
 BOOTSTRAP_OS=${BOOTSTRAP_OS:-}
 DEPLOY=${DEPLOY:-}
 BUILD_IMAGES=${BUILD_IMAGES:-}
+LOCAL_IMAGE=${LOCAL_IMAGE:-}
 CLEANUP=${CLEANUP:-}
 TMP_PROJECT=${TMP_PROJECT:-}
 
@@ -23,21 +24,25 @@ main() {
     [ "$TMP_PROJECT" ] && oc new-project "$TMP_PROJECT"
     [ "$DEPLOY" ] && setup_for_deployer "$BUILD_IMAGES"
     [ "$BUILD_IMAGES" ] && build_images
-    run_deployer "${DEPLOY:+deploy}" "$BUILD_IMAGES"
+    run_deployer \
+        "${DEPLOY:+deploy}" \
+        "$([ "$BUILD_IMAGES" -o "$LOCAL_IMAGE" ] && echo 1)"
     check_deployer
 }
 
 parse_args() {
-    local tmp
+    local long tmp
+    long=bootstrap-os,build-images,local-image,deploy,cleanup,tmp-project
     tmp=$(getopt \
         --options '' \
-        --long bootstrap-os,build-images,deploy,cleanup,tmp-project \
+        --long "$long" \
         --name "$(basename "$0")" -- "$@")
     eval set -- "$tmp"
     while [ "$1" != -- ]; do
         case "$1" in
             --bootstrap-os) BOOTSTRAP_OS=bootstrap_os; shift;;
             --build-images) BUILD_IMAGES=build_images; shift;;
+            --local-image) LOCAL_IMAGE=local_image; shift;;
             --deploy) DEPLOY=deploy; shift;;
             --cleanup) CLEANUP=cleanup; shift;;
             --tmp-project) TMP_PROJECT=tmp_project; shift;;
@@ -56,6 +61,8 @@ parse_args() {
         [ "$CLEANUP" ] \
             && args_error 'can only use "cleanup" with a temporary project'
     fi
+    [ "$BUILD_IMAGES" -a "$LOCAL_IMAGE" ] \
+        && args_error 'can'\''t use "local image" and "build images" together'
     return 0
 }
 

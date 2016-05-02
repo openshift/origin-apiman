@@ -18,6 +18,8 @@ The flags that can be used to change how the tests are executed are:
   out to test an already existing deployment.
 - `--build-images`: build the images from the local source instead of using the
   git repository.
+- `--local-image`: use the deployer image on the local registry on the node
+  instead of pulling from an external or internal registry.
 
 When using the `--deploy` flag, the `--tmp-project` flag can be used to execute
 the deployment on a temporary project named `apiman-e2e-test-XXXX`, where

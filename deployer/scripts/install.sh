@@ -57,6 +57,10 @@ function create_config() {
     --from-file=common/elasticsearch/logging.yml \
     --from-file=conf/elasticsearch.yml
   oc label configmap/apiman-elasticsearch $support_label # make easier to delete later
+  # generate curator configmap
+  oc create configmap apiman-curator \
+    --from-file=config.yaml=conf/curator.yml
+  oc label configmap/apiman-curator $support_label # make easier to delete later
 
   # generate common node key for the SearchGuard plugin
   openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $scratch_dir/searchguard-node-key.key -pass pass:pass

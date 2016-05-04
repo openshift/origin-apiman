@@ -3,7 +3,8 @@ set -euo pipefail
 
 ORIGIN_APIMAN_ROOT=$(realpath --no-symlinks "$(dirname "$BASH_SOURCE")/../..")
 OS_ROOT=${OS_ROOT:-$(realpath --no-symlinks "$ORIGIN_APIMAN_ROOT/../origin")}
-readonly ORIGIN_APIMAN_ROOT OS_ROOT
+INTEGRATION_COMMON_ROOT=$ORIGIN_APIMAN_ROOT/deployer/common
+readonly ORIGIN_APIMAN_ROOT OS_ROOT INTEGRATION_COMMON_ROOT
 
 BOOTSTRAP_OS=${BOOTSTRAP_OS:-}
 DEPLOY=${DEPLOY:-}
@@ -12,8 +13,9 @@ LOCAL_IMAGE=${LOCAL_IMAGE:-}
 CLEANUP=${CLEANUP:-}
 TMP_PROJECT=${TMP_PROJECT:-}
 
-source "$OS_ROOT/hack/cmd_util.sh"
-source "$OS_ROOT/hack/lib/util/environment.sh"
+export INTEGRATION_COMMON_ROOT
+source "$INTEGRATION_COMMON_ROOT/bash/testing/cmd_util.sh"
+source "$INTEGRATION_COMMON_ROOT/bash/testing/lib/util/environment.sh"
 os::util::environment::setup_time_vars
 export VERBOSE=1
 

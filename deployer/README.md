@@ -102,7 +102,7 @@ Some policy manipulation is required in order for the deployer pod to
 create secrets, templates, and deployments in the project. By default
 service accounts are not allowed to do this.
 
-    $ oc policy add-role-to-user edit --serviceaccount apiman
+    $ oc policy add-role-to-user edit --serviceaccount apiman-deployer
 
 The APIMan deployment also requires service accounts
 to be given special privileges. Run the following command to

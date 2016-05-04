@@ -7,7 +7,7 @@
 #  runhour: 0
 #  runminute: 0
 
-# to keep ops logs for a shorter duration:
+# to keep ops logs for a different duration:
 #.operations:
 #  delete:
 #    weeks: 8

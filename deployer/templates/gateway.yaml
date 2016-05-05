@@ -61,19 +61,19 @@ objects:
           containers:
             -
               name: "gateway"
-              image: apiman-gateway
+              image: ${IMAGE_PREFIX}apiman-gateway:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
               ports:
                 - name: gateway
                   containerPort: 7777
               env:
-                - name: "ES_HOST"
-                  value: ${ES_HOST}
-                - name: "ES_PORT"
-                  value: ${ES_PORT}
+                - name: "APIMAN_GATEWAY_SSL"
+                  value: "true"
+                - name: "APIMAN_GATEWAY_ELASTICSEARCH_URL"
+                  value: https://${ES_HOST}:${ES_PORT}
               volumeMounts:
                 - name: gateway
-                  mountPath: /secret
+                  mountPath: /secret/apiman-gateway
                   readOnly: true
           volumes:
             - name: gateway
@@ -84,6 +84,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
 parameters:
 -
   description: "Internal URL for the master, for service retrieval"
@@ -100,5 +103,8 @@ parameters:
 -
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
+  required: true
+-
+  name: IMAGE_PREFIX_DEFAULT
   required: true
 

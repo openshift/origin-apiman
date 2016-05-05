@@ -44,6 +44,27 @@ objects:
     name: apiman-curator
   spec: {}
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-builder
+    name: apiman-builder
+  spec: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-console
+    name: apiman-console
+  spec: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-gateway
+    name: apiman-gateway
+  spec: {}
+- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
@@ -123,12 +144,108 @@ objects:
       type: Docker
     triggers:
     - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-builder
+    name: apiman-builder
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
+    resources: {}
+    source:
+      contextDir: apiman-builder
+      git:
+        uri: ${APIMAN_FORK_URL}
+        ref: ${APIMAN_FORK_BRANCH}
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: DockerImage
+          name: openshift/base-centos7
+      type: Docker
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-console
+    name: apiman-console
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-console:latest
+    resources: {}
+    source:
+      contextDir: apiman
+      git:
+        uri: ${F8_FORK_URL}
+        ref: ${F8_FORK_BRANCH}
+      type: Git
+    strategy:
+      type: Custom
+      customStrategy:
+        exposeDockerSocket: true
+        from:
+          kind: ImageStreamTag
+          name: apiman-builder:latest
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      from:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-gateway
+    name: apiman-gateway
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-gateway:latest
+    resources: {}
+    source:
+      contextDir: apiman-gateway
+      git:
+        uri: ${F8_FORK_URL}
+        ref: ${F8_FORK_BRANCH}
+      type: Git
+    strategy:
+      type: Custom
+      customStrategy:
+        exposeDockerSocket: true
+        from:
+          kind: ImageStreamTag
+          name: apiman-builder:latest
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      from:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
 parameters:
 -
-  description: 'URL for apiman fork'
+  description: 'URL for origin-apiman fork'
   name: APIMAN_FORK_URL
   value: https://github.com/openshift/origin-apiman
 -
   description: 'branch for origin-apiman fork'
   name: APIMAN_FORK_BRANCH
+  value: master
+-
+  description: 'URL for fabric8-ipaas fork'
+  name: F8_FORK_URL
+  value: https://github.com/fabric8io/fabric8-ipaas
+-
+  description: 'branch for fabric8-ipaas fork'
+  name: F8_FORK_BRANCH
   value: master

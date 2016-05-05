@@ -60,8 +60,7 @@ searchguard:
       allowed_actions: ["indices:data/read/*", "*monitor*"]
       forbidden_actions: ["cluster:*", "indices:admin*", "indices:data/write*"]
     access:
-      allowed_actions: ["indices:data/*/*", "*monitor*"]
-      forbidden_actions: ["cluster:*", "indices:admin*", "indices:data/write*"]
+      allowed_actions: ["indices:data/*/*", "indices:admin/create", "indices:admin/read", "*monitor*"]
     curator:
       allowed_actions: ["indices:admin/get", "indices:admin/delete"]
 

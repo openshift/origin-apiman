@@ -12,7 +12,7 @@ parameters:
   required: true
 -
   description: 'Specify prefix for apiman component images; e.g. for "openshift/origin-apiman-deployer:v1.1", set prefix "openshift/origin-"'
-  name: IMAGE_PREFIX
+  name: IMAGE_PREFIX_DEFAULT
   value: "docker.io/openshift/origin-"
 objects:
 - apiVersion: "v1"
@@ -96,16 +96,19 @@ objects:
     component: support
   parameters:
   -
-    description: "The name for the PVC"
-    name: INSECURE_REPOS
+    name: INSECURE_REGISTRY
     value: "false"
+  -
+    description: 'Specify prefix for apiman component images; e.g. for "openshift/origin-apiman-deployer:v1.1", set prefix "openshift/origin-"'
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
   objects:
   -
     apiVersion: v1
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
+        openshift.io/image.insecureRepository: ${INSECURE_REGISTRY}
       name: apiman-elasticsearch
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}apiman-elasticsearch
@@ -114,7 +117,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
+        openshift.io/image.insecureRepository: ${INSECURE_REGISTRY}
       name: apiman-curator
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}apiman-elasticsearch
@@ -123,7 +126,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
+        openshift.io/image.insecureRepository: ${INSECURE_REGISTRY}
       name: apiman-console
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}apiman-console
@@ -132,7 +135,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: ${INSECURE_REPOS}
+        openshift.io/image.insecureRepository: ${INSECURE_REGISTRY}
       name: apiman-gateway
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}apiman-gateway

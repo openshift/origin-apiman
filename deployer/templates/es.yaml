@@ -61,7 +61,7 @@ objects:
           containers:
             -
               name: "elasticsearch"
-              image: apiman-elasticsearch
+              image: ${IMAGE_PREFIX}apiman-elasticsearch:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
               ports:
               -
@@ -143,6 +143,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
 parameters:
 - name: ES_INSTANCE_RAM
 - name: ES_NODE_QUORUM
@@ -150,3 +153,4 @@ parameters:
 - name: ES_RECOVER_EXPECTED_NODES
 - name: ES_RECOVER_AFTER_TIME
 - name: IMAGE_VERSION_DEFAULT
+- name: IMAGE_PREFIX_DEFAULT

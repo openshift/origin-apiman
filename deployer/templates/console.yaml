@@ -61,30 +61,26 @@ objects:
           containers:
             -
               name: "console"
-              image: apiman-console
+              image: ${IMAGE_PREFIX}apiman-console:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
               ports:
               -
-                containerPort: 7777
+                containerPort: 7070
                 name: "console"
               env:
                 - name: "APIMAN_SSL"
                   value: "true"
-                - name: "ES_HOST"
-                  value: ${ES_HOST}
-                - name: "ES_PORT"
-                  value: ${ES_PORT}
+                - name: "APIMAN_ELASTICSEARCH_URL"
+                  value: https://${ES_HOST}:${ES_PORT}
+                - name: "APIMAN_GATEWAY_URL"
+                  value: https://${GATEWAY_HOST}:${GATEWAY_PORT}
+                - name: "APIMAN_GATEWAY_PUBLIC_HOSTNAME"
+                  value: ${GATEWAY_PUBLIC_HOSTNAME}
                 - name: "PUBLIC_MASTER_URL"
                   value: ${PUBLIC_MASTER_URL}
-                - name: "GATEWAY_HOST"
-                  value: ${GATEWAY_HOST}
-                - name: "GATEWAY_PORT"
-                  value: ${GATEWAY_PORT}
-                - name: "GATEWAY_PUBLIC_HOSTNAME"
-                  value: ${GATEWAY_PUBLIC_HOSTNAME}
               volumeMounts:
                 - name: console
-                  mountPath: /secret
+                  mountPath: /secret/apiman
                   readOnly: true
           volumes:
             - name: console
@@ -95,10 +91,16 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
 parameters:
 -
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
+  required: true
+-
+  name: IMAGE_PREFIX_DEFAULT
   required: true
 -
   description: "Public URL for the master, for sending the browser to authenticate"
@@ -123,4 +125,4 @@ parameters:
 -
   description: "Port to connect to for gateway backend."
   name: GATEWAY_PORT
-  value: "7070"
+  value: "7777"

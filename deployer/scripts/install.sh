@@ -25,7 +25,7 @@ function run_installation() {
 function initialize_vars() {
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
-  insecure_repos=${INSECURE_REPOS:-false}
+  insecure_registry=${INSECURE_REGISTRY:-false}
   console_hostname=${CONSOLE_HOSTNAME:-apiman.example.com}
   gateway_hostname=${GATEWAY_HOSTNAME:-api-gateway.example.com}
   public_master_url=${PUBLIC_MASTER_URL:-https://localhost:443}
@@ -57,12 +57,16 @@ function create_config() {
     --from-file=common/elasticsearch/logging.yml \
     --from-file=conf/elasticsearch.yml
   oc label configmap/apiman-elasticsearch $support_label # make easier to delete later
+  # generate curator configmap
+  oc create configmap apiman-curator \
+    --from-file=config.yaml=conf/curator.yml
+  oc label configmap/apiman-curator $support_label # make easier to delete later
 
   # generate common node key for the SearchGuard plugin
   openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $scratch_dir/searchguard-node-key.key -pass pass:pass
   # generate credentials for u/p access to the gateway from the console
-  echo "console_user" > $scratch_dir/gateway.access.user
-  mktemp -u XXXXXXXXXXXXXX > $scratch_dir/gateway.access.password
+  echo -n "console_user," > $scratch_dir/gateway.user
+  mktemp -u XXXXXXXXXXXXXX >> $scratch_dir/gateway.user
 
   # use or generate server certs
   local file component hostnames secret domain=${project}.svc.cluster.local
@@ -103,7 +107,7 @@ function create_config() {
           ca.crt=$scratch_dir/ca.crt
           )
     case "$component" in
-      #console|gateway) secret+=( auth-user=$scratch_dir/gateway.access.user auth-password=$scratch_dir/gateway.access.password ) ;;
+      console|gateway) secret+=( gateway.user=$scratch_dir/gateway.user ) ;;
       elasticsearch)   secret+=( searchguard-node-key=$scratch_dir/searchguard-node-key.key ) ;;
       curator)         secret=(
                           client.key=$scratch_dir/${user}.key
@@ -117,6 +121,12 @@ function create_config() {
     oc label secret/apiman-$component $support_label # make them easier to delete later
     oc secrets add serviceaccount/apiman-$component secrets/apiman-$component --for=mount
   done
+  if [ -n "${IMAGE_PULL_SECRET:-}" ]; then
+    for account in apiman-{console,gateway,elasticsearch,curator}; do
+      oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET" 
+    done
+  fi
+
 }
 
 ######################################
@@ -125,6 +135,7 @@ function create_config() {
 #
 function create_templates() {
   echo "Creating templates"
+  local image_params="IMAGE_VERSION_DEFAULT=${image_version},IMAGE_PREFIX_DEFAULT=${image_prefix}"
   sed "/serviceAccountName/ i\
 \          $(os::int::deploy::extract_nodeselector ${STORAGE_NODESELECTOR:-})" \
            templates/es.yaml | oc process -f -  \
@@ -133,7 +144,7 @@ function create_templates() {
            --value "ES_RECOVER_AFTER_NODES=${es_recover_after_nodes}" \
            --value "ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes}" \
            --value "ES_RECOVER_AFTER_TIME=${es_recover_after_time}" \
-           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
+           --value "$image_params" \
            | oc create -f -
 
   sed "/serviceAccountName/ i\
@@ -141,7 +152,7 @@ function create_templates() {
            templates/curator.yaml | oc process -f - \
            --value "ES_HOST=apiman-storage" \
            --value "MASTER_URL=${master_url}" \
-           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
+           --value "$image_params" \
            | oc create -f -
 
   sed "/serviceAccountName/ i\
@@ -149,19 +160,19 @@ function create_templates() {
            templates/console.yaml | oc process -f - \
            --value "PUBLIC_MASTER_URL=${public_master_url}" \
            --value "GATEWAY_PUBLIC_HOSTNAME=${gateway_hostname}" \
-           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
+           --value "$image_params" \
            | oc create -f -
 
   sed "/serviceAccountName/ i\
 \          $(os::int::deploy::extract_nodeselector ${GATEWAY_NODESELECTOR:-})" \
            templates/gateway.yaml | oc process -f - \
            --value "ES_HOST=apiman-storage" \
-           --value "IMAGE_VERSION_DEFAULT=${image_version}" \
+           --value "$image_params" \
            | oc create -f -
 
   oc new-app -f templates/support.yaml \
            --param "CONSOLE_HOSTNAME=${console_hostname}" \
-           --param "IMAGE_PREFIX=${image_prefix}"
+           --param "IMAGE_PREFIX_DEFAULT=${image_prefix}"
 }
 
 ######################################
@@ -170,7 +181,7 @@ function create_templates() {
 #
 function create_deployment() {
   echo "Creating deployed objects"
-  oc new-app apiman-imagestream-template --param "INSECURE_REPOS=${insecure_repos}" || :
+  oc new-app apiman-imagestream-template --param "INSECURE_REGISTRY=${insecure_registry}" || :
   # these may fail if already created; that's ok
            
   oc process apiman-support-template | oc create -f -

@@ -8,7 +8,8 @@ ENV HOME=/opt/origin/builder
 WORKDIR ${HOME}
 
 RUN yum install -y --setopt=tsflags=nodocs \
-                java-1.8.0-openjdk java-1.8.0-openjdk-devel docker
+                java-1.8.0-openjdk java-1.8.0-openjdk-devel docker jq && \
+    yum clean all
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 

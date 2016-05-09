@@ -33,25 +33,14 @@ function check_provided_certs() {
 }
 
 function check_service_accounts() {
+  common/groovy/validation.groovy check_edit_role "$project" || return
+  common/groovy/validation.groovy \
+    check_cluster_reader "$project" apiman-gateway \
+      || return
   local output sa
-  # inability to access SAs indicates that we didn't get the edit role.
-  # it's not a perfect test but will catch those who fail to follow directions.
-  if ! output=$(os::int::util::check_exists serviceaccounts); then
-    echo "Deployer does not have expected access in the ${project} project."
-    echo "Give it edit access with:"
-    echo '  $ oc policy add-role-to-user edit -z apiman-deployer'
-    return 1
-  fi
   for sa in apiman-{gateway,console,elasticsearch,curator}; do
     os::int::pre::check_service_account $project $sa || return 1
   done
-  # likewise, just reading nodes isn't enough, but lack of access is a good indicator.
-  if ! output=$(os::int::util::check_exists nodes --context=apiman-gateway-serviceaccount); then
-    echo "The apiman-gateway ServiceAccount does not have the required access."
-    echo "Give it cluster-reader access with:"
-    echo "  \$ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${project}:apiman-gateway"
-    return 1
-  fi
   return 0
 }
 

@@ -6,13 +6,6 @@ OS_ROOT=${OS_ROOT:-$(realpath --no-symlinks "$ORIGIN_APIMAN_ROOT/../origin")}
 INTEGRATION_COMMON_ROOT=$ORIGIN_APIMAN_ROOT/deployer/common
 readonly ORIGIN_APIMAN_ROOT OS_ROOT INTEGRATION_COMMON_ROOT
 
-BOOTSTRAP_OS=${BOOTSTRAP_OS:-}
-DEPLOY=${DEPLOY:-}
-BUILD_IMAGES=${BUILD_IMAGES:-}
-LOCAL_IMAGE=${LOCAL_IMAGE:-}
-CLEANUP=${CLEANUP:-}
-TMP_PROJECT=${TMP_PROJECT:-}
-
 export INTEGRATION_COMMON_ROOT
 source "$INTEGRATION_COMMON_ROOT/bash/testing/cmd_util.sh"
 source "$INTEGRATION_COMMON_ROOT/bash/testing/lib/util/environment.sh"
@@ -21,14 +14,14 @@ export VERBOSE=1
 
 main() {
     parse_args "$@"
-    [ "$BOOTSTRAP_OS" ] && bootstrap_os
-    [ "$CLEANUP" ] && trap "oc delete project/$TMP_PROJECT" EXIT
-    [ "$TMP_PROJECT" ] && oc new-project "$TMP_PROJECT"
-    [ "$DEPLOY" ] && setup_for_deployer "$BUILD_IMAGES"
-    [ "$BUILD_IMAGES" ] && build_images
+    [ "${BOOTSTRAP_OS:-}" ] && bootstrap_os
+    [ "${CLEANUP:-}" ] && trap "oc delete project/$TMP_PROJECT" EXIT
+    [ "${TMP_PROJECT:-}" ] && oc new-project "$TMP_PROJECT"
+    [ "${DEPLOY:-}" ] && setup_for_deployer "${BUILD_IMAGES:-}"
+    [ "${BUILD_IMAGES:-}" ] && build_images
     run_deployer \
         "${DEPLOY:+deploy}" \
-        "$([ "$BUILD_IMAGES" -o "$LOCAL_IMAGE" ] && echo 1)"
+        "$([ "${BUILD_IMAGES:-}" -o "${LOCAL_IMAGE:-}" ] && echo 1)"
     check_deployer
 }
 
@@ -50,20 +43,19 @@ parse_args() {
             --tmp-project) TMP_PROJECT=tmp_project; shift;;
         esac
     done
-    if [ ! "$DEPLOY" ]; then
-        [ "$TMP_PROJECT" ] \
+    if [ ! "${DEPLOY:-}" ]; then
+        [ "${TMP_PROJECT:-}" ] \
             && args_error 'can only use temporary project when deploying'
-        [ "$CLEANUP" ] \
+        [ "${CLEANUP:-}" ] \
             && args_error 'can only use "cleanup" when deploying'
     fi
-    if [ "$TMP_PROJECT" ]; then
-        TMP_PROJECT=apiman-e2e-test-$( \
-            base64 /dev/urandom | tr -cd [a-z0-9] | head -c 5 || true)
+    if [ "${TMP_PROJECT:-}" ]; then
+        TMP_PROJECT=apiman-e2e-test-$(mktemp -u XXXXX | tr [A-Z] [a-z])
     else
-        [ "$CLEANUP" ] \
+        [ "${CLEANUP:-}" ] \
             && args_error 'can only use "cleanup" with a temporary project'
     fi
-    [ "$BUILD_IMAGES" -a "$LOCAL_IMAGE" ] \
+    [ "${BUILD_IMAGES:-}" -a "${LOCAL_IMAGE:-}" ] \
         && args_error 'can'\''t use "local image" and "build images" together'
     return 0
 }

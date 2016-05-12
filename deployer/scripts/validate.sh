@@ -98,7 +98,7 @@ function check_deployer() {
   local line out
   while read line; do
     out=$(os::int::util::check_exists $line 2>&1) && continue
-    printf >&2 '%s' "$out"
+    printf >&2 '%s\n' "$out"
     return 1
   done <<-'EOF'
 		imagestreams apiman-console apiman-elasticsearch apiman-gateway

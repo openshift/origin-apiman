@@ -15,27 +15,28 @@ main() {
     [ "${BOOTSTRAP_OS:-}" ] && bootstrap_os
     [ "${CLEANUP:-}" ] && trap "oc delete project/$TMP_PROJECT" EXIT
     [ "${TMP_PROJECT:-}" ] && oc new-project "$TMP_PROJECT"
-    [ "${DEPLOY:-}" ] && setup_for_deployer "${BUILD_IMAGES:-}"
-    [ "${BUILD_IMAGES:-}" ] && build_images
+    [ "${DEPLOY:-}" ] && setup_for_deployer
+    build_images \
+        "${LOCAL_SOURCE:-}" "${IMAGE_PREFIX:-}" "${INSECURE_REPOSITORY:-}"
     run_deployer \
         "${DEPLOY:+deploy}" \
-        "$([ "${BUILD_IMAGES:-}" -o "${LOCAL_IMAGE:-}" ] && echo 1)"
+        "$(get_image_prefix "${LOCAL_SOURCE:-}" "${IMAGE_PREFIX:-}")"
     check_deployer
 }
 
 parse_args() {
     local long tmp
-    long=bootstrap-os,build-images,local-image,deploy,cleanup,tmp-project
-    tmp=$(getopt \
-        --options '' \
-        --long "$long" \
-        --name "$(basename "$0")" -- "$@")
+    long=bootstrap-os,cleanup,deploy,image-prefix:,insecure-repository
+    long=$long,local-source,tmp-project
+    tmp=$(getopt --options '' --long "$long" --name "$(basename "$0")" -- "$@")
     eval set -- "$tmp"
     while [ "$1" != -- ]; do
         case "$1" in
             --bootstrap-os) BOOTSTRAP_OS=bootstrap_os; shift;;
-            --build-images) BUILD_IMAGES=build_images; shift;;
-            --local-image) LOCAL_IMAGE=local_image; shift;;
+            --local-source) LOCAL_SOURCE=local_source; shift;;
+            --image-prefix) IMAGE_PREFIX=$2; shift 2;;
+            --insecure-repository)
+                INSECURE_REPOSITORY=insecure_repository; shift;;
             --deploy) DEPLOY=deploy; shift;;
             --cleanup) CLEANUP=cleanup; shift;;
             --tmp-project) TMP_PROJECT=tmp_project; shift;;
@@ -53,8 +54,6 @@ parse_args() {
         [ "${CLEANUP:-}" ] \
             && args_error 'can only use "cleanup" with a temporary project'
     fi
-    [ "${BUILD_IMAGES:-}" -a "${LOCAL_IMAGE:-}" ] \
-        && args_error 'can'\''t use "local image" and "build images" together'
     return 0
 }
 
@@ -79,7 +78,6 @@ bootstrap_os() {
 }
 
 setup_for_deployer() {
-    local build_images=$1 filter
     os::cmd::expect_success \
         'oc create -f "$ORIGIN_APIMAN_ROOT/deployer/deployer.yaml"'
     os::cmd::expect_success \
@@ -92,41 +90,54 @@ setup_for_deployer() {
             "system:serviceaccount:$(oc project --short):apiman-gateway")"
     os::cmd::expect_success \
         'oc secrets new apiman-deployer nothing=/dev/null'
-    os::cmd::expect_success \
-        'oc label secret/apiman-deployer apiman-infra=deployer'
-    [ "$build_images" ] \
-        && filter="jq '{apiVersion,kind,items:[.items[]|del(.spec.triggers)]}'"
-    os::cmd::expect_success \
-        "$(echo \
-            oc process -f '"$ORIGIN_APIMAN_ROOT/hack/dev-builds.yaml"' \
-            \| $filter \| oc create -f -)"
 }
 
 build_images() {
-    local get_is_tags
+    local local_source=$1 image_prefix=$2 insecure_repository=$3 get_is_tags
+    if [ ! "$image_prefix" ]; then
+        os::cmd::expect_success \
+            'oc new-app -f $ORIGIN_APIMAN_ROOT/hack/dev-builds.yaml'
+    else
+        os::cmd::expect_success "$(echo \
+            oc new-app \
+                -f $ORIGIN_APIMAN_ROOT/hack/dev-local-builds.yaml \
+                ${image_prefix:+-p "IMAGE_PREFIX=$image_prefix"} \
+                ${insecure_repository:+-p INSECURE_REPOSITORY=true})"
+    fi
     get_is_tags='{{range .status.tags}}{{.tag}}{{"\n"}}{{end}}'
     get_is_tags="oc get --template '$get_is_tags' imagestream"
-    os::cmd::try_until_text \
-        "$get_is_tags origin" '^latest$' "$((2 * TIME_MIN ))" 10
-    os::cmd::try_until_text \
-        "$get_is_tags centos" '^7$' "$((2 * TIME_MIN ))" 10
-    for x in deployer elasticsearch curator; do
-        oc start-build "apiman-$x" \
-            --follow --wait --from-dir="$ORIGIN_APIMAN_ROOT"
-    done
+    if [ ! "$local_source" ]; then
+        for x in deployer elasticsearch curator; do
+            os::cmd::try_until_text \
+                "$get_is_tags apiman-$x" '^latest$' "$((5 * TIME_MIN ))" 10
+        done
+    else
+        os::cmd::try_until_text \
+            "$get_is_tags origin" '^latest$' "$((2 * TIME_MIN ))" 10
+        os::cmd::try_until_text \
+            "$get_is_tags centos" '^7$' "$((2 * TIME_MIN ))" 10
+        for x in deployer elasticsearch curator; do
+            os::cmd::expect_success "$(echo \
+                oc start-build "apiman-$x" \
+                    --follow --wait --from-dir="$ORIGIN_APIMAN_ROOT")"
+        done
+    fi
+}
+
+get_image_prefix() {
+    local local_source=$1 image_prefix=$2
+    [ "$image_prefix" ] && { echo "$image_prefix"; return; }
+    oc get imagestream/apiman-elasticsearch \
+        --template '{{.status.dockerImageRepository}}' \
+        | sed 's,[^/]*$,,'
 }
 
 run_deployer() {
-    local mode build_images image_prefix mode
-    mode="-v MODE=${1:-validate}"
-    image_prefix=${2:+-v IMAGE_PREFIX="$( \
-        oc get imagestream/apiman-elasticsearch \
-            --template '{{.status.dockerImageRepository}}' \
-                | sed 's,[^/]*$,,')"}
+    local mode=$1 image_prefix=$2
     os::cmd::expect_success "$(echo \
         oc process template/apiman-deployer-template \
-            $mode \
-            $image_prefix \
+            -v MODE=${mode:-validate} \
+            ${image_prefix:+-v "IMAGE_PREFIX=$image_prefix"} \
             -v GATEWAY_HOSTNAME=gateway.example.com \
             -v CONSOLE_HOSTNAME=manager.example.com \
             -v PUBLIC_MASTER_URL=master.example.com \
@@ -144,7 +155,7 @@ check_deployer() {
     tmpl='{{.status.phase}}{{"\n"}}'
     os::cmd::try_until_text \
         "oc get '$deployer_pod' --template '$tmpl'" \
-        '^Running|Succeeded|Failed$' "$((3 * TIME_MIN))" 5
+        '^Running|Succeeded|Failed$' "$((5 * TIME_MIN))" 5
     oc logs -f "$deployer_pod"
     os::cmd::try_until_text \
         "oc get '$deployer_pod' --template '$tmpl'" \

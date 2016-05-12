@@ -55,7 +55,9 @@ searchguard:
         truststore_filepath: /etc/elasticsearch/secret/truststore
         truststore_password: ${TRUSTSTORE_PASSWORD}
   actionrequestfilter:
-    names: ["curator"]
+    names: ["access", "curator"]
+    access:
+      allowed_actions: ["indices:data/read/*"]
     curator:
       allowed_actions: ["indices:admin/get", "indices:admin/delete"]
 
@@ -69,10 +71,14 @@ openshift:
         bypass: ["*"]
         "*.indices": [".apiman_*"]
         "*.comment": "Console can see/edit APIMan data"
+        execute: ["actionrequestfilter.access"]
+        actionrequestfilter.access.comment: "Can read data"
       system.apiman.gateway:
         bypass: ["*"]
         "*.indices": [".apiman_*"]
         "*.comment": "Gateway can see/edit APIMan data"
+        execute: ["actionrequestfilter.access"]
+        actionrequestfilter.access.comment: "Can read data"
       system.apiman.curator:
         execute: ["actionrequestfilter.curator"]
         actionrequestfilter.curator.comment: "Curator can list all indices and delete them"

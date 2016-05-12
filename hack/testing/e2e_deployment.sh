@@ -2,15 +2,13 @@
 set -euo pipefail
 
 ORIGIN_APIMAN_ROOT=$(realpath --no-symlinks "$(dirname "$BASH_SOURCE")/../..")
-OS_ROOT=${OS_ROOT:-$(realpath --no-symlinks "$ORIGIN_APIMAN_ROOT/../origin")}
-INTEGRATION_COMMON_ROOT=$ORIGIN_APIMAN_ROOT/deployer/common
-readonly ORIGIN_APIMAN_ROOT OS_ROOT INTEGRATION_COMMON_ROOT
+export INTEGRATION_COMMON_ROOT=$ORIGIN_APIMAN_ROOT/deployer/common
+export VERBOSE=1
+readonly ORIGIN_APIMAN_ROOT INTEGRATION_COMMON_ROOT VERBOSE
 
-export INTEGRATION_COMMON_ROOT
 source "$INTEGRATION_COMMON_ROOT/bash/testing/cmd_util.sh"
 source "$INTEGRATION_COMMON_ROOT/bash/testing/lib/util/environment.sh"
 os::util::environment::setup_time_vars
-export VERBOSE=1
 
 main() {
     parse_args "$@"
@@ -67,7 +65,12 @@ args_error() {
 
 bootstrap_os() {
     os::util::environment::use_sudo
-    os::util::environment::setup_all_server_vars origin-apiman
+    os::util::environment::setup_tmpdir_vars origin-apiman
+    os::util::environment::setup_kubelet_vars
+    os::util::environment::setup_etcd_vars
+    os::util::environment::setup_server_vars
+    export USE_IMAGES='openshift/origin-${component}:latest'
+    os::util::environment::setup_images_vars
     configure_os_server
     start_os_server
     install_registry

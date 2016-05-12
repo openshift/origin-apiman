@@ -8,28 +8,48 @@ The `e2e_deployment.sh` script can be used is several ways, the common case
 being starting the official vagrant image and running:
 
     hack/testing/e2e_deployment.sh \
-        --bootstrap-os --deploy --build-images --tmp-project
+        --bootstrap-os --deploy --local-source --tmp-project --cleanup
 
 The flags that can be used to change how the tests are executed are:
 
-- `--bootstrap-os`: start an openshift server.  Uses the scripts on origin's
-  `hack` directory.
+- `--bootstrap-os`: start an openshift server for running the tests (see the
+  scripts in `deployer/common/testing`).
 - `--deploy`: execute the pre-deployment setup and deployment.  It can be left
   out to test an already existing deployment.
-- `--build-images`: build the images from the local source instead of using the
-  git repository.
-- `--local-image`: use the deployer image on the local registry on the node
-  instead of pulling from an external or internal registry.
+- `--local-source`: build the images from the local source.
+- `--image-prefix`: pull images from an alternate source.
+- `--insecure-repository`: add the `openshift.io/image.insecureRepository` to
+  the image streams, necessary to access registries using http (as opposed to
+  https).
 
 When using the `--deploy` flag, the `--tmp-project` flag can be used to execute
-the deployment on a temporary project named `apiman-e2e-test-XXXX`, where
+the deployment on a temporary project named `apiman-e2e-test-XXXXX`, where
 `XXXXX` is a randomly generated string.
 
 When using the `--tmp-project` flag, the `--cleanup` flag can be used to remove
 this project at the end of the test.
 
 Instead of using command-line switches, these flags can be set using
-environment variables.  The common could also be executed this way:
+environment variables.  The common case could also be executed this way:
 
-    BOOTSTRAP_OS=1 DEPLOY=1 BUILD_IMAGES \
-        hack/testing/e2e_deployment.sh --tmp-project
+    BOOTSTRAP_OS=1 DEPLOY=1 LOCAL_SOURCE=1 \
+        hack/testing/e2e_deployment.sh --tmp-project --cleanup
+
+
+### Examples
+
+Test the deployment creating BuildConfigs that clone the official repository
+and build the images:
+
+    hack/testing/e2e_deployment.sh --deploy
+
+Test the deployment creating BuildConfigs that use the local source to build
+the images:
+
+    hack/testing/e2e_deployment.sh --deploy --local-source
+
+Test the deployment using images from another source (use `--insecure-registry`
+if the registry isn't available on https):
+
+    hack/testing/e2e_deployment.sh --deploy \
+        --image-prefix registry.example.com/path/

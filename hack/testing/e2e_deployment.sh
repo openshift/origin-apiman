@@ -94,7 +94,9 @@ setup_for_deployer() {
 
 build_images() {
     local local_source=$1 image_prefix=$2 insecure_repository=$3 get_is_tags
-    if [ ! "$image_prefix" ]; then
+    get_is_tags='{{range .status.tags}}{{.tag}}{{"\n"}}{{end}}'
+    get_is_tags="oc get --template '$get_is_tags' imagestream"
+    if [ ! "$local_source" -a ! "$image_prefix"]; then
         os::cmd::expect_success \
             'oc new-app -f $ORIGIN_APIMAN_ROOT/hack/dev-builds.yaml'
     else
@@ -104,24 +106,15 @@ build_images() {
                 ${image_prefix:+-p "IMAGE_PREFIX=$image_prefix"} \
                 ${insecure_repository:+-p INSECURE_REPOSITORY=true})"
     fi
-    get_is_tags='{{range .status.tags}}{{.tag}}{{"\n"}}{{end}}'
-    get_is_tags="oc get --template '$get_is_tags' imagestream"
-    if [ ! "$local_source" ]; then
-        for x in deployer elasticsearch curator; do
+    for x in deployer elasticsearch curator; do
+        if [ "$local_source" ]; then
+            oc start-build "apiman-$x" \
+                --follow --wait --from-dir="$ORIGIN_APIMAN_ROOT"
+        else
             os::cmd::try_until_text \
                 "$get_is_tags apiman-$x" '^latest$' "$((5 * TIME_MIN ))" 10
-        done
-    else
-        os::cmd::try_until_text \
-            "$get_is_tags origin" '^latest$' "$((2 * TIME_MIN ))" 10
-        os::cmd::try_until_text \
-            "$get_is_tags centos" '^7$' "$((2 * TIME_MIN ))" 10
-        for x in deployer elasticsearch curator; do
-            os::cmd::expect_success "$(echo \
-                oc start-build "apiman-$x" \
-                    --follow --wait --from-dir="$ORIGIN_APIMAN_ROOT")"
-        done
-    fi
+        fi
+    done
 }
 
 get_image_prefix() {

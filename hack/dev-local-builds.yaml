@@ -103,4 +103,4 @@ parameters:
   name: IMAGE_PREFIX
 -
   name: INSECURE_REPOSITORY
-  value: false
+  value: "false"

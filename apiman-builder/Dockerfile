@@ -1,7 +1,7 @@
 # custom builder for doing a maven build of APIMan -
 # Origin-only as Enterprise should use productized packaging.
 
-FROM centos:centos7
+FROM openshift/base-centos7
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 USER 0
 ENV HOME=/opt/origin/builder

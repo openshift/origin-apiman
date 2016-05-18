@@ -39,6 +39,36 @@ objects:
   spec:
     dockerImageRepository: ${IMAGE_PREFIX}apiman-curator
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-builder
+    name: apiman-builder
+    annotations:
+      openshift.io/image.insecureRepository: ${INSECURE_REPOSITORY}
+  spec:
+    dockerImageRepository: ${IMAGE_PREFIX}apiman-builder
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-console
+    name: apiman-console
+    annotations:
+      openshift.io/image.insecureRepository: ${INSECURE_REPOSITORY}
+  spec:
+    dockerImageRepository: ${IMAGE_PREFIX}apiman-console
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: apiman-gateway
+    name: apiman-gateway
+    annotations:
+      openshift.io/image.insecureRepository: ${INSECURE_REPOSITORY}
+  spec:
+    dockerImageRepository: ${IMAGE_PREFIX}apiman-gateway
+- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
@@ -98,6 +128,88 @@ objects:
       type: Git
     strategy:
       type: Docker
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-builder
+    name: apiman-builder
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
+    resources: {}
+    source:
+      contextDir: apiman-builder
+      git:
+        uri: https://github.com/fabric8io/fabric8-ipaas
+        ref: master
+      type: Git
+    strategy:
+      type: Docker
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-console
+    name: apiman-console
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-console:latest
+    resources: {}
+    source:
+      contextDir: apiman
+      git:
+        uri: https://github.com/fabric8io/fabric8-ipaas
+        ref: master
+      type: Git
+    strategy:
+      type: Custom
+      customStrategy:
+        exposeDockerSocket: true
+        from:
+          kind: ImageStreamTag
+          name: apiman-builder:latest
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      from:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: apiman-gateway
+    name: apiman-gateway
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: apiman-gateway:latest
+    resources: {}
+    source:
+      contextDir: apiman-gateway
+      git:
+        uri: https://github.com/fabric8io/fabric8-ipaas
+        ref: master
+      type: Git
+    strategy:
+      type: Custom
+      customStrategy:
+        exposeDockerSocket: true
+        from:
+          kind: ImageStreamTag
+          name: apiman-builder:latest
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      from:
+        kind: ImageStreamTag
+        name: apiman-builder:latest
 parameters:
 -
   name: IMAGE_PREFIX

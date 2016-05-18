@@ -78,39 +78,45 @@ setup_for_deployer() {
     os::cmd::expect_success \
         'oc create -f "$ORIGIN_APIMAN_ROOT/deployer/deployer.yaml"'
     os::cmd::expect_success \
-        'oc process template/apiman-deployer-account-template | oc create -f -'
-    os::cmd::expect_success \
-        'oadm policy add-role-to-user edit --serviceaccount apiman-deployer'
+        'oc new-app --template=apiman-deployer-account-template'
     os::cmd::expect_success \
         "$(echo \
             oadm policy add-cluster-role-to-user cluster-reader \
-            "system:serviceaccount:$(oc project --short):apiman-gateway")"
+            "system:serviceaccount:$(oc project --short):apiman-console")"
     os::cmd::expect_success \
         'oc secrets new apiman-deployer nothing=/dev/null'
+    os::cmd::expect_success \
+        "$(echo \
+            oc create configmap apiman-deployer \
+                --from-literal gateway-hostname=gateway.example.com \
+                --from-literal console-hostname=console.example.com \
+                --from-literal public-master-url=master.example.com \
+                --from-literal es-cluster-size=1)"
 }
 
 build_images() {
     local local_source=$1 image_prefix=$2 insecure_repository=$3 get_is_tags
-    get_is_tags='{{range .status.tags}}{{.tag}}{{"\n"}}{{end}}'
-    get_is_tags="oc get --template '$get_is_tags' imagestream"
     if [ ! "$local_source" -a ! "$image_prefix"]; then
         os::cmd::expect_success \
             'oc new-app -f $ORIGIN_APIMAN_ROOT/hack/dev-builds.yaml'
     else
-        os::cmd::expect_success "$(echo \
-            oc new-app \
-                -f $ORIGIN_APIMAN_ROOT/hack/dev-local-builds.yaml \
-                ${image_prefix:+-p "IMAGE_PREFIX=$image_prefix"} \
-                ${insecure_repository:+-p INSECURE_REPOSITORY=true})"
+        oc new-app \
+            -f $ORIGIN_APIMAN_ROOT/hack/dev-local-builds.yaml \
+            ${image_prefix:+-p "IMAGE_PREFIX=$image_prefix"} \
+            ${insecure_repository:+-p INSECURE_REPOSITORY=true} \
+                || true
     fi
-    for x in deployer elasticsearch curator; do
-        if [ "$local_source" ]; then
+    if [ "$local_source" ]; then
+        for x in deployer elasticsearch curator builder; do
             oc start-build "apiman-$x" \
                 --follow --wait --from-dir="$ORIGIN_APIMAN_ROOT"
-        else
-            os::cmd::try_until_text \
-                "$get_is_tags apiman-$x" '^latest$' "$((5 * TIME_MIN ))" 10
-        fi
+        done
+    fi
+    get_is_tags='{{range .status.tags}}{{.tag}}{{"\n"}}{{end}}'
+    get_is_tags="oc get --template '$get_is_tags' imagestream"
+    for x in deployer elasticsearch curator builder gateway console; do
+        os::cmd::try_until_text \
+            "$get_is_tags apiman-$x" '^latest$' "$((5 * TIME_MIN ))" 10
     done
 }
 
@@ -125,14 +131,9 @@ get_image_prefix() {
 run_deployer() {
     local mode=$1 image_prefix=$2
     os::cmd::expect_success "$(echo \
-        oc process template/apiman-deployer-template \
-            -v MODE=${mode:-validate} \
-            ${image_prefix:+-v "IMAGE_PREFIX=$image_prefix"} \
-            -v GATEWAY_HOSTNAME=gateway.example.com \
-            -v CONSOLE_HOSTNAME=manager.example.com \
-            -v PUBLIC_MASTER_URL=master.example.com \
-            -v ES_CLUSTER_SIZE=1 \
-                \| oc create -f -)"
+        oc new-app --template=apiman-deployer-template \
+            --param MODE=${mode:-validate} \
+            ${image_prefix:+--param "IMAGE_PREFIX=$image_prefix"})"
 }
 
 check_deployer() {

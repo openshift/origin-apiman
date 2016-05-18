@@ -51,18 +51,14 @@ objects:
             deployment: ${ES_DEPLOYMENT_NAME}
         spec:
           serviceAccountName: apiman-elasticsearch
-          limits:
-          -
-            type: Pod
-            max:
-              memory: "${INSTANCE_RAM}i"
-            min:
-              memory: "512Mi"
           containers:
             -
               name: "elasticsearch"
               image: ${IMAGE_PREFIX}apiman-elasticsearch:${IMAGE_VERSION}
               imagePullPolicy: IfNotPresent
+              resources:
+                limits: { memory: "${INSTANCE_RAM}i" }
+                requests: { memory: "256Mi" }
               ports:
               -
                 containerPort: 9200

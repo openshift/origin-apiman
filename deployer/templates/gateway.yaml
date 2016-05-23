@@ -33,16 +33,6 @@ objects:
       selector:
         provider: openshift
         component: gateway
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - gateway
-          from:
-            kind: ImageStreamTag
-            name: apiman-gateway:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -50,6 +40,7 @@ objects:
           timeoutSeconds: 600
           updatePeriodSeconds: 1
         type: Rolling
+      triggers: {}
       template:
         metadata:
           name: gateway

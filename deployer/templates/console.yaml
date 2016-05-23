@@ -33,16 +33,6 @@ objects:
       selector:
         provider: openshift
         component: console
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - console
-          from:
-            kind: ImageStreamTag
-            name: apiman-console:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -50,6 +40,7 @@ objects:
           timeoutSeconds: 600
           updatePeriodSeconds: 1
         type: Rolling
+      triggers: {}
       template:
         metadata:
           name: console

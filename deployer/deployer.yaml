@@ -89,8 +89,6 @@ items:
             value: ${IMAGE_VERSION}
           - name: IMAGE_PULL_SECRET
             value: ${IMAGE_PULL_SECRET}
-          - name: INSECURE_REGISTRY
-            value: ${INSECURE_REGISTRY}
           - name: CONSOLE_HOSTNAME
             value: ${CONSOLE_HOSTNAME}
           - name: GATEWAY_HOSTNAME
@@ -144,10 +142,6 @@ items:
   -
     description: 'Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.'
     name: IMAGE_PULL_SECRET
-  -
-    description: '"true" allows the registry for component images to be insecure'
-    name: INSECURE_REGISTRY
-    value: "false"
   -
     description: "External hostname where users will reach the APIMan management UI"
     name: CONSOLE_HOSTNAME

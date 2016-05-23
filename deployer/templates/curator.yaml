@@ -41,16 +41,6 @@ objects:
       selector:
         provider: openshift
         component: curator
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - curator
-          from:
-            kind: ImageStreamTag
-            name: apiman-curator:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -58,6 +48,7 @@ objects:
           timeoutSeconds: 600
           updatePeriodSeconds: 1
         type: Recreate
+      triggers: {}
       template:
         metadata:
           name: curator

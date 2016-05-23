@@ -31,18 +31,9 @@ objects:
         provider: "openshift"
         component: elasticsearch
         deployment: ${ES_DEPLOYMENT_NAME}
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - elasticsearch
-          from:
-            kind: ImageStreamTag
-            name: apiman-elasticsearch:${IMAGE_VERSION}
       strategy:
         type: Recreate
+      triggers: {}
       template:
         metadata:
           labels:

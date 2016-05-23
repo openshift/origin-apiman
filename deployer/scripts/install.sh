@@ -25,7 +25,6 @@ function run_installation() {
 function initialize_vars() {
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
-  insecure_registry=${INSECURE_REGISTRY:-false}
   console_hostname=${CONSOLE_HOSTNAME:-apiman.example.com}
   gateway_hostname=${GATEWAY_HOSTNAME:-api-gateway.example.com}
   public_master_url=${PUBLIC_MASTER_URL:-https://localhost:443}
@@ -181,10 +180,7 @@ function create_templates() {
 #
 function create_deployment() {
   echo "Creating deployed objects"
-  oc new-app apiman-imagestream-template --param "INSECURE_REGISTRY=${insecure_registry}" || :
-  # these may fail if already created; that's ok
-           
-  oc process apiman-support-template | oc create -f -
+  oc new-app apiman-support-template
 
   # routes
   os::int::deploy::procure_route_cert "$scratch_dir" "$secret_dir" console-route
@@ -204,29 +200,30 @@ function create_deployment() {
                                   --cert="$scratch_dir/gateway-route.crt" )
   oc create route reencrypt "${gateway_route_params[@]}"
 
-  # PVCs
+  # PVCs and deployments
   local -A pvcs=()
-  local pvc n
+  local pvc n dc
   for pvc in $(oc get persistentvolumeclaim --template='{{range .items}}{{.metadata.name}} {{end}}' 2>/dev/null); do
     pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting
   done
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${es_pvc_prefix}$n"
     if [ "${pvcs[$pvc]:-}" != 1 -a "${es_pvc_size:-}" != "" ]; then # doesn't exist, create it
-      oc process apiman-pvc-template --value "NAME=$pvc,SIZE=${es_pvc_size}" | oc create -f -
+      oc new-app apiman-pvc-template --parameter "NAME=$pvc,SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
-    if [ "${pvcs[$pvc]:-}" = 1 ]; then # exists (now), attach it
-      oc process apiman-es-template | oc volume -f - \
-                --add --overwrite --name=elasticsearch-storage \
-                --type=persistentVolumeClaim --claim-name="$pvc"
-    else
-      oc process apiman-es-template | oc create -f -
-    fi
+    dc=$(oc new-app apiman-es-template -o name)
+    [ "${pvcs[$pvc]:-}" = 1 ] &&
+      oc set volume $dc --add --overwrite --name=elasticsearch-storage \
+                        --type=persistentVolumeClaim --claim-name="$pvc"
+    oc deploy --latest $dc
   done
-  oc process apiman-console-template | oc create -f -
-  oc process apiman-gateway-template | oc create -f -
-  oc process apiman-curator-template | oc create -f -
+  oc new-app apiman-curator-template
+  oc new-app apiman-gateway-template
+  oc new-app apiman-console-template
+  for dc in apiman-{curator,gateway,console}; do
+    oc deploy --latest $dc
+  done
 }
 
 ######################################

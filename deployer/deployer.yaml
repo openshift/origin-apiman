@@ -12,20 +12,24 @@ items:
     labels:
       apiman-infra: support
   objects:
-  - apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: apiman-deployer
-      labels:
-        provider: openshift
-        component: deployer
-    secrets:
-    - name: apiman-deployer
   -
     apiVersion: v1
     kind: ServiceAccount
     metadata:
-      name: apiman-console
+      name: apiman-deployer
+    secrets:
+    - name: apiman-deployer
+  -
+    apiVersion: v1
+    kind: RoleBinding
+    metadata:
+      name: apiman-deployer-edit-role
+    roleRef:
+      kind: ClusterRole
+      name: edit
+    subjects:
+    - kind: ServiceAccount
+      name: apiman-deployer
   -
     apiVersion: v1
     kind: ServiceAccount
@@ -41,6 +45,11 @@ items:
     kind: ServiceAccount
     metadata:
       name: apiman-gateway
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: apiman-console
 -
   apiVersion: "v1"
   kind: "Template"

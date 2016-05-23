@@ -60,7 +60,9 @@ If your installation did not create templates in the `openshift`
 namespace, the `apiman-deployer-account-template` and `apiman-deployer-template`
 templates may not exist. In that case you can create them with the following:
 
-    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-apiman/master/deployer/deployer.yaml
+    $ oc apply -n openshift -f https://raw.githubusercontent.com/openshift/origin-apiman/master/deployer/deployer.yaml
+
+You can use the same command to update the template when it changes.
 
 ## Create the Deployer Secret
 
@@ -92,25 +94,22 @@ An invocation supplying properly signed route certs might be:
        console-route.crt=/path/to/cert console-route.key=/path/to/key \
        gateway-route.crt=/path/to/cert2 gateway-route.key=/path/to/key2 \
 
-## Create Supporting ServiceAccounts
+## Create Supporting Service Accounts
 
-The deployer must run under a service account defined as follows:
+The deployer must run with service accounts defined as follows:
 
     $ oc new-app apiman-deployer-account-template
 
-Some policy manipulation is required in order for the deployer pod to
-create secrets, templates, and deployments in the project. By default
-service accounts are not allowed to do this.
+This creates all necessary ServiceAccount and policy objects; it only
+needs to be performed once, after which the deployer can be invoked
+many times.
 
-    $ oc policy add-role-to-user edit --serviceaccount apiman-deployer
-
-The APIMan deployment also requires service accounts
-to be given special privileges. Run the following command to
-give the account access to read services across the cluster:
-(note, change `:default:` below to the project of your choice):
+The APIMan deployment requires one service account to be given special
+privileges. Run the following command to give the console access to
+read projects across the cluster: (note, change `:default:` below to
+the project of your choice):
 
     $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:apiman-console
-    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:apiman-gateway
 
 ## Run the Deployer
 

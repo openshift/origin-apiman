@@ -10,7 +10,8 @@ ENV BIN_DIR=/opt/deploy \
     CREATE_KUBECONFIG=1 \
     JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk
 
-RUN yum install -y java-1.8.0-openjdk openssl && yum clean all
+RUN yum install -y java-1.8.0-openjdk-devel openssl groovy maven \
+    && yum clean all
 
 RUN mkdir -p ${HOME} ${BIN_DIR} && chmod 777 ${HOME} && chmod 555 ${BIN_DIR}
 COPY .  ${BIN_DIR}
@@ -18,4 +19,13 @@ WORKDIR ${BIN_DIR}
 
 VOLUME ${HOME}
 ENTRYPOINT ["./run.sh"]
+
+# XXX openshift-restclient-java patch
+RUN git clone https://github.com/openshift/openshift-restclient-java.git \
+    && cd openshift-restclient-java \
+    && sed -i '453a			typeMappings.put("Node", k8eEndpoint);' \
+        src/main/java/com/openshift/internal/restclient/DefaultClient.java \
+    && mvn compile assembly:single -DdescriptorId=jar-with-dependencies \
+    && mv target/*.jar .
+ENV CLASSPATH=${CLASSPATH:+$CLASSPATH:}/opt/deploy/openshift-restclient-java/*
 USER 1000

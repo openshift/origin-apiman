@@ -46,7 +46,7 @@ objects:
             -
               name: "elasticsearch"
               image: ${IMAGE_PREFIX}apiman-elasticsearch:${IMAGE_VERSION}
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               resources:
                 limits:
                   memory: "${INSTANCE_RAM}i"

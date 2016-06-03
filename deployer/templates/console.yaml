@@ -53,7 +53,7 @@ objects:
             -
               name: "console"
               image: ${IMAGE_PREFIX}apiman-console:${IMAGE_VERSION}
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               ports:
               -
                 containerPort: 7070

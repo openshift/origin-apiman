@@ -53,7 +53,7 @@ objects:
             -
               name: "gateway"
               image: ${IMAGE_PREFIX}apiman-gateway:${IMAGE_VERSION}
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               ports:
                 - name: gateway
                   containerPort: 7777

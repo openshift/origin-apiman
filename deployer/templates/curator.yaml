@@ -60,7 +60,7 @@ objects:
           containers:
           - name: curator
             image: ${IMAGE_PREFIX}apiman-curator:${IMAGE_VERSION}
-            imagePullPolicy: IfNotPresent
+            imagePullPolicy: Always
             resources:
               limits:
                 cpu: 100m

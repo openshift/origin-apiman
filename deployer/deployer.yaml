@@ -17,8 +17,6 @@ items:
     kind: ServiceAccount
     metadata:
       name: apiman-deployer
-    secrets:
-    - name: apiman-deployer
   -
     apiVersion: v1
     kind: RoleBinding
@@ -73,9 +71,6 @@ items:
         imagePullPolicy: IfNotPresent
         name: deployer
         volumeMounts:
-        - name: secret
-          mountPath: /secret
-          readOnly: true
         - name: empty
           mountPath: /etc/deploy
         env:
@@ -87,36 +82,6 @@ items:
             value: ${IMAGE_PREFIX}
           - name: IMAGE_VERSION
             value: ${IMAGE_VERSION}
-          - name: IMAGE_PULL_SECRET
-            value: ${IMAGE_PULL_SECRET}
-          - name: CONSOLE_HOSTNAME
-            value: ${CONSOLE_HOSTNAME}
-          - name: GATEWAY_HOSTNAME
-            value: ${GATEWAY_HOSTNAME}
-          - name: PUBLIC_MASTER_URL
-            value: ${PUBLIC_MASTER_URL}
-          - name: MASTER_URL
-            value: ${MASTER_URL}
-          - name: ES_INSTANCE_RAM
-            value: ${ES_INSTANCE_RAM}
-          - name: ES_PVC_SIZE
-            value: ${ES_PVC_SIZE}
-          - name: ES_PVC_PREFIX
-            value: ${ES_PVC_PREFIX}
-          - name: ES_CLUSTER_SIZE
-            value: ${ES_CLUSTER_SIZE}
-          - name: ES_NODE_QUORUM
-            value: ${ES_NODE_QUORUM}
-          - name: ES_RECOVER_AFTER_NODES
-            value: ${ES_RECOVER_AFTER_NODES}
-          - name: ES_RECOVER_EXPECTED_NODES
-            value: ${ES_RECOVER_EXPECTED_NODES}
-          - name: ES_RECOVER_AFTER_TIME
-            value: ${ES_RECOVER_AFTER_TIME}
-          - name: ES_NODESELECTOR
-            value: ${ES_NODESELECTOR}
-          - name: CONSOLE_NODESELECTOR
-            value: ${CONSOLE_NODESELECTOR}
           - name: MODE
             value: ${MODE}
           - name: IGNORE_PREFLIGHT
@@ -127,9 +92,6 @@ items:
       volumes:
       - name: empty
         emptyDir: {}
-      - name: secret
-        secret:
-          secretName: apiman-deployer
   parameters:
   -
     description: 'Specify prefix for apiman components; e.g. for "openshift/origin-apiman-deployer:v1.1", set prefix "openshift/origin-"'
@@ -139,65 +101,6 @@ items:
     description: 'Specify version for apiman components; e.g. for "openshift/origin-apiman-deployer:v1.1", set version "v1.1"'
     name: IMAGE_VERSION
     value: "latest"
-  -
-    description: 'Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.'
-    name: IMAGE_PULL_SECRET
-  -
-    description: "External hostname where users will reach the APIMan management UI"
-    name: CONSOLE_HOSTNAME
-    required: true
-  -
-    description: "Hostname where clients will reach the APIMan gateway"
-    name: GATEWAY_HOSTNAME
-    required: true
-  -
-    description: "External URL for the master, for OAuth purposes"
-    name: PUBLIC_MASTER_URL
-    required: true
-  -
-    description: "Internal URL for the master, for authentication retrieval"
-    name: MASTER_URL
-    value: "https://kubernetes.default.svc.cluster.local"
-  -
-    description: "How many instances of ElasticSearch to deploy."
-    name: ES_CLUSTER_SIZE
-    required: true
-  -
-    description: "Amount of RAM to reserve per ElasticSearch instance."
-    name: ES_INSTANCE_RAM
-    value: "8G"
-  -
-    description: "Size of the PersistentVolumeClaim to create per ElasticSearch instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
-    name: ES_PVC_SIZE
-  -
-    description: "Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size ES_PVC_SIZE."
-    name: ES_PVC_PREFIX
-    value: "apiman-es-"
-  -
-    description: "Number of nodes required to elect a master (ES minimum_master_nodes). By default, derived from ES_CLUSTER_SIZE / 2 + 1."
-    name: ES_NODE_QUORUM
-  -
-    description: "Number of nodes required to be present before the cluster will recover from a full restart. By default, one fewer than ES_CLUSTER_SIZE."
-    name: ES_RECOVER_AFTER_NODES
-  -
-    description: "Number of nodes desired to be present before the cluster will recover from a full restart. By default, ES_CLUSTER_SIZE."
-    name: ES_RECOVER_EXPECTED_NODES
-  -
-    description: "Timeout for *expected* nodes to be present when cluster is recovering from a full restart."
-    name: ES_RECOVER_AFTER_TIME
-    value: "5m"
-  -
-    description: "Node selector Elasticsearch cluster (label=value)."
-    name: ES_NODESELECTOR
-    value: ""
-  -
-    description: "Node selector for console deployment (label=value)."
-    name: CONSOLE_NODESELECTOR
-    value: ""
-  -
-    description: "Node selector for gateway deployment (label=value)."
-    name: GATEWAY_NODESELECTOR
-    value: ""
   -
     description: "The mode that the deployer runs in: one of install|reinstall|uninstall."
     name: MODE

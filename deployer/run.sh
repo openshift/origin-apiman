@@ -13,7 +13,6 @@ ignore_preflight=${IGNORE_PREFLIGHT:-false}
 
 # following are useful in dev, but expected to fail inside container
 mkdir -p $scratch_dir && chmod 700 $scratch_dir && rm -rf $scratch_dir/* || :
-mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 os::int::deploy::write_kubeconfig "$scratch_dir" "$project"
 

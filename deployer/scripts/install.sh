@@ -7,7 +7,7 @@ function delete_installation() {
 }
 
 readonly label=apiman-infra  # "constant" label name applied to all our objects
-readonly support_label="apiman-infra=support" 
+readonly support_label="apiman-infra=support"
 
 function run_installation() {
   set -x
@@ -22,28 +22,50 @@ function run_installation() {
 #
 # initialize a lot of variables from env
 #
+declare -A input_vars=()
 function initialize_vars() {
+  set +x
+  local configmap secret index value var
+  local index_template='{{range $index, $element :=.data}}{{println $index}}{{end}}'
+  # if configmap exists, get values from it
+  if configmap=$(oc get configmap/apiman-deployer --template="$index_template"); then
+    for index in $configmap; do
+      input_vars[$index]=$(oc get configmap/apiman-deployer --template="{{println (index .data \"$index\")}}")
+    done
+  fi
+  # if secret exists, get values from it
+  if secret=$(oc get secret/apiman-deployer --template="$index_template"); then
+    for index in $secret; do
+      : ${input_vars[$index]:=$(oc get secret/apiman-deployer --template="{{println (index .data \"$index\")}}" | base64 -d)}
+    done
+  fi
+  # if legacy variables set, use them to fill unset inputs
+  for var in PUBLIC_MASTER_URL MASTER_URL {CONSOLE,GATEWAY}_HOSTNAME {STORAGE,CURATOR,CONSOLE,GATEWAY}_NODESELECTOR \
+             ES_{INSTANCE_RAM,PVC_SIZE,PVC_PREFIX,CLUSTER_SIZE,NODE_QUORUM,RECOVER_AFTER_NODES,RECOVER_EXPECTED_NODES,RECOVER_AFTER_TIME}
+  do
+    [ ${!var+set} ] || continue
+    index=${var,,} # lowercase
+    index=${index//_/-} # underscore to hyphen
+    : ${input_vars[$index]:=${!var}}
+  done
+  set -x
+
+  console_hostname=${input_vars[console-hostname]:-apiman.example.com}
+  gateway_hostname=${input_vars[gateway-hostname]:-api-gateway.example.com}
+  public_master_url=${input_vars[public-master-url]:-https://localhost:8443}
+  master_url=${input_vars[master-url]:-https://kubernetes.default.svc.cluster.local:443}
+  # ES cluster parameters:
+  es_instance_ram=${input_vars[es-instance-ram]:-512M}
+  es_pvc_size=${input_vars[es-pvc-size]:-}
+  es_pvc_prefix=${input_vars[es-pvc-prefix]:-}
+  es_cluster_size=${input_vars[es-cluster-size]:-1}
+  es_node_quorum=${input_vars[es-node-quorum]:-$((es_cluster_size/2+1))}
+  es_recover_after_nodes=${input_vars[es-recover-after-nodes]:-$((es_cluster_size-1))}
+  es_recover_expected_nodes=${input_vars[es-recover-expected-nodes]:-$es_cluster_size}
+  es_recover_after_time=${input_vars[es-recover-after-time]:-5m}
+
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
-  insecure_registry=${INSECURE_REGISTRY:-false}
-  console_hostname=${CONSOLE_HOSTNAME:-apiman.example.com}
-  gateway_hostname=${GATEWAY_HOSTNAME:-api-gateway.example.com}
-  public_master_url=${PUBLIC_MASTER_URL:-https://localhost:443}
-  master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
-  # ES cluster parameters:
-  es_pvc_size=${ES_PVC_SIZE:-}
-  es_pvc_prefix=${ES_PVC_PREFIX:-apiman-es}
-  es_instance_ram=${ES_INSTANCE_RAM:-512M}
-  es_cluster_size=${ES_CLUSTER_SIZE:-1}
-  es_node_quorum=${ES_NODE_QUORUM:-$((es_cluster_size/2+1))}
-  es_recover_after_nodes=${ES_RECOVER_AFTER_NODES:-$((es_cluster_size-1))}
-  es_recover_expected_nodes=${ES_RECOVER_EXPECTED_NODES:-$es_cluster_size}
-  es_recover_after_time=${ES_RECOVER_AFTER_TIME:-5m}
-
-  # other env vars used:
-  # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
-  # other env vars used (expect base64 encoding):
-  # KIBANA_KEY, KIBANA_CERT, SERVER_TLS_JSON
 
 }
 
@@ -121,9 +143,9 @@ function create_config() {
     oc label secret/apiman-$component $support_label # make them easier to delete later
     oc secrets add serviceaccount/apiman-$component secrets/apiman-$component --for=mount
   done
-  if [ -n "${IMAGE_PULL_SECRET:-}" ]; then
+  if [ "${input_vars[image-pull-secret]+set}" ]; then
     for account in apiman-{console,gateway,elasticsearch,curator}; do
-      oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET" 
+      oc secrets add --for=pull "serviceaccount/$account" "secret/${input_vars[image-pull-secret]}" 
     done
   fi
 
@@ -137,7 +159,7 @@ function create_templates() {
   echo "Creating templates"
   local image_params="IMAGE_VERSION_DEFAULT=${image_version},IMAGE_PREFIX_DEFAULT=${image_prefix}"
   sed "/serviceAccountName/ i\
-\          $(os::int::deploy::extract_nodeselector ${STORAGE_NODESELECTOR:-})" \
+\          $(os::int::deploy::extract_nodeselector ${input_vars[storage-nodeselector]:-})" \
            templates/es.yaml | oc process -f -  \
            --value "ES_INSTANCE_RAM=${es_instance_ram}" \
            --value "ES_NODE_QUORUM=${es_node_quorum}" \
@@ -148,7 +170,7 @@ function create_templates() {
            | oc create -f -
 
   sed "/serviceAccountName/ i\
-\          $(os::int::deploy::extract_nodeselector ${CURATOR_NODESELECTOR:-})" \
+\          $(os::int::deploy::extract_nodeselector ${input_vars[curator-nodeselector]:-})" \
            templates/curator.yaml | oc process -f - \
            --value "ES_HOST=apiman-storage" \
            --value "MASTER_URL=${master_url}" \
@@ -156,7 +178,7 @@ function create_templates() {
            | oc create -f -
 
   sed "/serviceAccountName/ i\
-\          $(os::int::deploy::extract_nodeselector ${CONSOLE_NODESELECTOR:-})" \
+\          $(os::int::deploy::extract_nodeselector ${input_vars[console-nodeselector]:-})" \
            templates/console.yaml | oc process -f - \
            --value "PUBLIC_MASTER_URL=${public_master_url}" \
            --value "GATEWAY_PUBLIC_HOSTNAME=${gateway_hostname}" \
@@ -164,7 +186,7 @@ function create_templates() {
            | oc create -f -
 
   sed "/serviceAccountName/ i\
-\          $(os::int::deploy::extract_nodeselector ${GATEWAY_NODESELECTOR:-})" \
+\          $(os::int::deploy::extract_nodeselector ${input_vars[gateway-nodeselector]:-})" \
            templates/gateway.yaml | oc process -f - \
            --value "ES_HOST=apiman-storage" \
            --value "$image_params" \
@@ -181,15 +203,12 @@ function create_templates() {
 #
 function create_deployment() {
   echo "Creating deployed objects"
-  oc new-app apiman-imagestream-template --param "INSECURE_REGISTRY=${insecure_registry}" || :
-  # these may fail if already created; that's ok
-           
-  oc process apiman-support-template | oc create -f -
+  oc new-app apiman-support-template
 
   # routes
   os::int::deploy::procure_route_cert "$scratch_dir" "$secret_dir" console-route
-  local -a console_route_params=( --service="apiman-console" 
-                                  --hostname="${console_hostname}" 
+  local -a console_route_params=( --service="apiman-console"
+                                  --hostname="${console_hostname}"
                                   --dest-ca-cert="$scratch_dir/ca.crt" )
   [ -e "$scratch_dir/console-route.crt" ] && console_route_params+=(
                                   --key="$scratch_dir/console-route.key"
@@ -204,29 +223,30 @@ function create_deployment() {
                                   --cert="$scratch_dir/gateway-route.crt" )
   oc create route reencrypt "${gateway_route_params[@]}"
 
-  # PVCs
+  # PVCs and deployments
   local -A pvcs=()
-  local pvc n
+  local pvc n dc
   for pvc in $(oc get persistentvolumeclaim --template='{{range .items}}{{.metadata.name}} {{end}}' 2>/dev/null); do
     pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting
   done
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${es_pvc_prefix}$n"
     if [ "${pvcs[$pvc]:-}" != 1 -a "${es_pvc_size:-}" != "" ]; then # doesn't exist, create it
-      oc process apiman-pvc-template --value "NAME=$pvc,SIZE=${es_pvc_size}" | oc create -f -
+      oc new-app apiman-pvc-template --parameter "NAME=$pvc,SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
-    if [ "${pvcs[$pvc]:-}" = 1 ]; then # exists (now), attach it
-      oc process apiman-es-template | oc volume -f - \
-                --add --overwrite --name=elasticsearch-storage \
-                --type=persistentVolumeClaim --claim-name="$pvc"
-    else
-      oc process apiman-es-template | oc create -f -
-    fi
+    dc=$(oc new-app apiman-es-template -o name)
+    [ "${pvcs[$pvc]:-}" = 1 ] &&
+      oc set volume $dc --add --overwrite --name=elasticsearch-storage \
+                        --type=persistentVolumeClaim --claim-name="$pvc"
+    oc deploy --latest $dc
   done
-  oc process apiman-console-template | oc create -f -
-  oc process apiman-gateway-template | oc create -f -
-  oc process apiman-curator-template | oc create -f -
+  oc new-app apiman-curator-template
+  oc new-app apiman-gateway-template
+  oc new-app apiman-console-template
+  for dc in apiman-{curator,gateway,console}; do
+    oc deploy --latest $dc
+  done
 }
 
 ######################################

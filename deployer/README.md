@@ -60,22 +60,35 @@ If your installation did not create templates in the `openshift`
 namespace, the `apiman-deployer-account-template` and `apiman-deployer-template`
 templates may not exist. In that case you can create them with the following:
 
-    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-apiman/master/deployer/deployer.yaml
+    $ oc apply -n openshift -f https://raw.githubusercontent.com/openshift/origin-apiman/master/deployer/deployer.yaml
+
+You can use the same command to update the template when it changes.
+
+## Create Supporting Service Accounts
+
+The deployer must run with service accounts defined as follows:
+
+    $ oc new-app apiman-deployer-account-template
+
+The APIMan deployment requires one service account to be given special
+privileges. Run the following command to give the console access to
+read projects across the cluster: (note, change `:default:` below to
+the project of your choice):
+
+    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:apiman-console
+
+This creates all necessary ServiceAccount and policy objects; it only
+needs to be performed once, after which the deployer can be invoked
+many times.
 
 ## Create the Deployer Secret
 
-Security parameters for the APIMan infrastructure
-deployment can be supplied to the deployer in the form of a
+Security parameters for the APIMan infrastructure deployment can
+optionally be supplied to the deployer in the form of a
 [secret](https://github.com/openshift/openshift-docs/blob/master/dev_guide/secrets.adoc).
 
-All contents of the secret are optional, but the secret itself must
-always be created in order to run the deployer. To supply no parameters,
-you can create an empty secret:
-
-    $ oc secrets new apiman-deployer nothing=/dev/null
-
-The following files may be supplied in the deployer secret, but will be
-generated if not provided:
+All contents of the secret are optional. The following files may be
+supplied in the deployer secret, but will be generated if not provided:
 
 * `gateway-route.crt` - A PEM-format browser-facing certificate for the gateway server route (if not supplied, the default router cert applies).
 * `gateway-route.key` - A PEM-format key to be used with the gateway route certificate.
@@ -88,61 +101,51 @@ generated if not provided:
 
 An invocation supplying properly signed route certs might be:
 
-    $ oc secrets new apiman-deployer \
-       console-route.crt=/path/to/cert console-route.key=/path/to/key \
-       gateway-route.crt=/path/to/cert2 gateway-route.key=/path/to/key2 \
+    $ oc create secret generic apiman-deployer      \
+       --from-file console-route.crt=/path/to/cert  \
+       --from-file console-route.key=/path/to/key   \
+       --from-file gateway-route.crt=/path/to/cert2 \
+       --from-file gateway-route.key=/path/to/key2
 
-## Create Supporting ServiceAccounts
+## Create the Deployer Configuration
 
-The deployer must run under a service account defined as follows:
+Further configuration parameters are provided to the deployer in the
+form of the `apiman-deployer` ConfigMap.
 
-    $ oc new-app apiman-deployer-account-template
-
-Some policy manipulation is required in order for the deployer pod to
-create secrets, templates, and deployments in the project. By default
-service accounts are not allowed to do this.
-
-    $ oc policy add-role-to-user edit --serviceaccount apiman-deployer
-
-The APIMan deployment also requires service accounts
-to be given special privileges. Run the following command to
-give the account access to read services across the cluster:
-(note, change `:default:` below to the project of your choice):
-
-    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:apiman-console
-    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:apiman-gateway
-
-## Run the Deployer
-
-You will need to specify the hostname at which the gateway and console should be
+While all of this section is optional, you will usually need to
+specify the hostname at which the gateway and console should be
 exposed to client browsers, and also the master URL where client
-browsers will be directed for authenticating to OpenShift. You should
+browsers will be directed for returning to OpenShift. You should
 read the [ElasticSearch](#elasticsearch) section below before choosing
 ElasticSearch parameters for the deployer. These and other parameters
 are available:
 
-* `GATEWAY_HOSTNAME` (required): External hostname where API clients will reach the gateway
-* `CONSOLE_HOSTNAME` (required): External hostname where web clients will reach the console
-* `PUBLIC_MASTER_URL` (required): External URL for the master, for OAuth purposes
-* `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
-* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 512M; must be at least 256M.
-* `ES_PVC_SIZE`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 10G. If empty, no PVCs will be created and emptyDir volumes are used instead.
-* `ES_PVC_PREFIX`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `ES_PVC_SIZE`.
-* `STORAGE_NODESELECTOR`: Specify the nodeSelector for placing Elasticsearch (label=value)
-* `GATEWAY_NODESELECTOR`: Specify the nodeSelector for placing the gateway (label=value)
-* `CONSOLE_NODESELECTOR`: Specify the nodeSelector for placing the console (label=value)
-* `IMAGE_PREFIX`: Specify prefix for APIMan component images; e.g. for "docker.io/openshift/origin-apiman-deployer:v1.1", set prefix "docker.io/openshift/origin-"
-* `IMAGE_VERSION`: Specify version for APIMan component images; e.g. for "docker.io/openshift/origin-apiman-deployer:v1.1", set version "v1.1"
-* `IMAGE_PULL_SECRET`: The name of a pull secret to be used for APIMan component images
-* `INSECURE_REGISTRY`: Set "true" if the registry for APIMan component images is not secured by a properly-signed certificate
+* `gateway-hostname`: External hostname where API clients will reach the gateway
+* `console-hostname`: External hostname where web clients will reach the console
+* `public-master-url`: External URL for the master, for redirecting browsers
+* `es-cluster-size`: How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `es-instance-ram`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 512M; must be at least 256M.
+* `es-pvc-size`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 10G. If empty, no PVCs will be created and emptyDir volumes are used instead.
+* `es-pvc-prefix`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `es-pvc-size`.
+* `storage-nodeselector`: Specify the nodeSelector for placing Elasticsearch (label=value)
+* `curator-nodeselector`: Specify the nodeSelector for placing the curator (label=value)
+* `gateway-nodeselector`: Specify the nodeSelector for placing the gateway (label=value)
+* `console-nodeselector`: Specify the nodeSelector for placing the console (label=value)
+* `image-pull-secret`: The name of a pull secret to be used for APIMan component images
 
-You run the deployer by instantiating a template. Here is an example with some parameters:
+To create the configuration, use the `oc create configmap` command. For example:
 
-    $ oc new-app apiman-deployer-template \
-                 -p GATEWAY_HOSTNAME=gateway.example.com \
-                 -p CONSOLE_HOSTNAME=console.example.com \
-                 -p PUBLIC_MASTER_URL=https://localhost:8443 \
-                 -p ES_CLUSTER_SIZE=1
+    $ oc create configmap apiman-deployer \
+                --from-literal gateway-hostname=gateway.example.com \
+                --from-literal console-hostname=console.example.com \
+                --from-literal public-master-url=https://master.example.com:8443 \
+                --from-literal es-cluster-size=1
+
+## Run the Deployer
+
+You run the deployer by instantiating the deployer template.
+
+    $ oc new-app apiman-deployer-template
 
 This creates a deployer pod and prints its name. Wait until the pod
 is running; this can take up to a few minutes to retrieve the deployer
@@ -169,7 +172,7 @@ You may scale the APIMan deployments normally for redundancy:
 ### ElasticSearch
 
 The deployer creates the number of ElasticSearch instances specified by
-`ES_CLUSTER_SIZE`. The nature of ElasticSearch and current Kubernetes
+`es-cluster-size`. The nature of ElasticSearch and current Kubernetes
 limitations require that we use a different scaling mechanism than the
 standard Kubernetes scaling.
 
@@ -278,8 +281,8 @@ There are some administrative settings that can be supplied (ref. [Elastic docum
 * `recover_after_nodes` - when restarting the cluster, require this many nodes to be present before starting recovery.
 * `expected_nodes` and `recover_after_time` - when restarting the cluster, wait for number of nodes to be present or time to expire before starting recovery.
 
-These are, respectively, the `NODE_QUORUM`, `RECOVER_AFTER_NODES`,
-`RECOVER_EXPECTED_NODES`, and `RECOVER_AFTER_TIME` parameters in the
+These are, respectively, the `node-quorum`, `recover-after-nodes`,
+`recover-expected-nodes`, and `recover-after-time` parameters in the
 deployments and the ES template. The deployer also enables specifying
-these parameters (with the `ES_` prefix), however usually its defaults
+these parameters (with the `es-` prefix), however usually its defaults
 should be sufficient.

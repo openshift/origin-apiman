@@ -45,13 +45,6 @@ function check_service_accounts() {
   for sa in apiman-{gateway,console,elasticsearch,curator}; do
     os::int::pre::check_service_account $project $sa || return 1
   done
-  # likewise, just reading nodes isn't enough, but lack of access is a good indicator.
-  if ! output=$(os::int::util::check_exists nodes --context=apiman-gateway-serviceaccount); then
-    echo "The apiman-gateway ServiceAccount does not have the required access."
-    echo "Give it cluster-reader access with:"
-    echo "  \$ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${project}:apiman-gateway"
-    return 1
-  fi
   return 0
 }
 

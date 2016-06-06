@@ -14,7 +14,8 @@ main() {
     parse_args "$@"
     [ "${BOOTSTRAP_OS:-}" ] && bootstrap_os
     [ "${CLEANUP:-}" ] && trap "oc delete project/$TMP_PROJECT" EXIT
-    [ "${TMP_PROJECT:-}" ] && oc new-project "$TMP_PROJECT"
+    [ "${TMP_PROJECT:-}" ] \
+        && oc new-project "apiman-e2e-test-$(mktemp -u XXXXX | tr [A-Z] [a-z])"
     [ "${DEPLOY:-}" ] && setup_for_deployer
     build_images \
         "${LOCAL_SOURCE:-}" "${IMAGE_PREFIX:-}" "${INSECURE_REPOSITORY:-}"
@@ -48,12 +49,8 @@ parse_args() {
         [ "${CLEANUP:-}" ] \
             && args_error 'can only use "cleanup" when deploying'
     fi
-    if [ "${TMP_PROJECT:-}" ]; then
-        TMP_PROJECT=apiman-e2e-test-$(mktemp -u XXXXX | tr [A-Z] [a-z])
-    else
-        [ "${CLEANUP:-}" ] \
-            && args_error 'can only use "cleanup" with a temporary project'
-    fi
+    [ "${CLEANUP:-}" -a ! "${TMP_PROJECT:-}" ] \
+        && args_error 'can only use "cleanup" with a temporary project'
     return 0
 }
 

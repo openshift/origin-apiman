@@ -45,10 +45,13 @@ function check_service_accounts() {
   for sa in apiman-{gateway,console,elasticsearch,curator}; do
     os::int::pre::check_service_account $project $sa || return 1
   done
-  return 0
-}
-
-function validate_deployment() {
+  # likewise, just reading nodes isn't enough, but lack of access is a good indicator.
+  if ! output=$(os::int::util::check_exists nodes --context=apiman-console-serviceaccount); then
+    echo "The apiman-console ServiceAccount does not have the required access."
+    echo "Give it cluster-reader access with:"
+    echo "  \$ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:${project}:apiman-console"
+    return 1
+  fi
   return 0
 }
 
@@ -60,3 +63,92 @@ function check_routes() {
   [ "$failure" = false ] || return 1
 }
 
+function validate_deployment() {
+  printf '\n%s\n' 'DEPLOYMENT VALIDATION'
+  os::int::util::check_chained_validations \
+    check_secrets check_deployer check_elasticsearch \
+      || exit
+}
+
+function check_secrets() {
+  local tmpl secret keys out
+  tmpl='{{range $k, $_ := .data}}{{$k}}{{"\n"}}{{end}}'
+  while read secret keys; do
+    out=$(oc get "secret/$secret" --template "$tmpl" | xargs echo)
+    [ "$out" == "$keys" ] && continue
+    validation_failure \
+      "Wrong data on deployer-generated secret $secret" \
+      "$(printf 'Expected:\n%s\nGot:\n%s\n' "$keys" "$out")"
+    return 1
+  done <<-'EOF'
+		apiman-elasticsearch \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			keystore keystore.password searchguard-node-key truststore \
+			truststore.password
+		apiman-console \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			gateway.user keystore keystore.password truststore truststore.password
+		apiman-gateway \
+			ca.crt client.crt client.key client.keystore client.keystore.password \
+			gateway.user keystore keystore.password truststore truststore.password
+		EOF
+}
+
+function check_deployer() {
+  local line out
+  while read line; do
+    out=$(os::int::util::check_exists $line 2>&1) && continue
+    printf >&2 '%s\n' "$out"
+    return 1
+  done <<-'EOF'
+		imagestreams apiman-console apiman-elasticsearch apiman-gateway
+		serviceaccounts \
+			apiman-console apiman-deployer apiman-elasticsearch apiman-gateway
+		configmaps apiman-elasticsearch apiman-curator
+		deploymentconfigs \
+			apiman-console apiman-gateway apiman-console apiman-gateway
+		deploymentconfigs --selector component=elasticsearch
+		services apiman-console apiman-es-cluster apiman-gateway apiman-storage
+		routes apiman-console apiman-gateway
+		EOF
+}
+
+check_elasticsearch() {
+  # curl(1):
+  # 52: The server didn't reply anything.
+  # 58: Problem with the local certificate.
+  # 60: Peer certificate cannot be authenticated with known CA certificates.
+  local deadline es_url
+  es_url=apiman-storage:9200
+  deadline=$(($(date +%s) + 3 * 60))
+  while :; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      printf >&2 '%s\n' 'Timeout waiting for elasticsearch to be up.'
+      return 1
+    fi
+    curl --max-time 18 "$es_url" &> /dev/null
+    [ $? -eq 52 ] && break
+    sleep 18
+  done
+  if curl "$es_url" &> /dev/null || [ $? != 52 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should have received an empty response when accessing using http'
+  fi
+  es_url=https://$es_url
+  if curl "$es_url" &> /dev/null || [ $? != 60 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should get an error connecting without a CA to verify the server'
+  fi
+  if curl --insecure "$es_url" &> /dev/null || [ $? != 58 ]; then
+    validation_failure \
+      'Invalid response from Elasticsearch' \
+      'Should get an error without configuring a client certificate'
+  fi
+}
+
+validation_failure() {
+  printf >&2 '%s.\n\n%s\n' "$@"
+  return 1
+}
